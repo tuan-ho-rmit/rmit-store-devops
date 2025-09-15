@@ -1,0 +1,22 @@
+mongo:
+  uri: "mongodb://<MONGO_PRIVATE_IP>:27017/rmit"
+
+backend:
+  image: "docker.io/<ns>/rmit-store-backend:latest"
+  blueImage:  "docker.io/<ns>/rmit-store-backend:<OLD_TAG>"
+  greenImage: "docker.io/<ns>/rmit-store-backend:<NEW_TAG>"
+  env:
+    JWT_SECRET: "prodsecret"
+  replicas: 1
+  activeColor: "blue"
+  port: 3000
+
+frontend:
+  image: "docker.io/<ns>/rmit-store-frontend:latest"
+  blueImage:  "docker.io/<ns>/rmit-store-frontend:<OLD_TAG>"
+  greenImage: "docker.io/<ns>/rmit-store-frontend:<NEW_TAG>"
+  replicas: 1
+  activeColor: "blue"
+  port: 80
+
+

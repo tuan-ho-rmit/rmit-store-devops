@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-green
+  labels:
+    app: frontend
+    activeColor: green
+spec:
+  replicas: {{ .Values.frontend.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app: frontend
+      activeColor: green
+  template:
+    metadata:
+      labels:
+        app: frontend
+        activeColor: green
+    spec:
+      nodeSelector:
+        tier: frontend
+      containers:
+        - name: frontend
+          image: {{ .Values.frontend.greenImage | default .Values.frontend.image | quote }}
+          ports:
+            - containerPort: {{ .Values.frontend.port | default 80 }}
+
+

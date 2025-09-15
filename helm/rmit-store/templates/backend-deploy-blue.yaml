@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-blue
+  labels:
+    app: backend
+    activeColor: blue
+spec:
+  replicas: {{ .Values.backend.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app: backend
+      activeColor: blue
+  template:
+    metadata:
+      labels:
+        app: backend
+        activeColor: blue
+    spec:
+      nodeSelector:
+        tier: backend
+      containers:
+        - name: backend
+          image: {{ .Values.backend.blueImage | default .Values.backend.image | quote }}
+          ports:
+            - containerPort: {{ .Values.backend.port | default 3000 }}
+          env:
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: MONGODB_URI
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: JWT_SECRET
+            - name: PORT
+              value: "{{ .Values.backend.port | default 3000 }}"
+            - name: BASE_API_URL
+              value: "api"
+            - name: CLIENT_URL
+              value: "http://frontend"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: {{ .Values.backend.port | default 3000 }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: {{ .Values.backend.port | default 3000 }}
+            initialDelaySeconds: 15
+            periodSeconds: 10
+
+

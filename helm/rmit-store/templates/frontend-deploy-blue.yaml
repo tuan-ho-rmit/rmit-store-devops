@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-blue
+  labels:
+    app: frontend
+    activeColor: blue
+spec:
+  replicas: {{ .Values.frontend.replicas | default 1 }}
+  selector:
+    matchLabels:
+      app: frontend
+      activeColor: blue
+  template:
+    metadata:
+      labels:
+        app: frontend
+        activeColor: blue
+    spec:
+      nodeSelector:
+        tier: frontend
+      containers:
+        - name: frontend
+          image: {{ .Values.frontend.blueImage | default .Values.frontend.image | quote }}
+          ports:
+            - containerPort: {{ .Values.frontend.port | default 80 }}
+
+

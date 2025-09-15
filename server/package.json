@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "nodemon",
     "start": "cross-env NODE_ENV=production node index.js",
-    "seed:db": "node utils/seed.js"
+    "seed:db": "node utils/seed.js",
+    "test": "jest --runInBand",
+    "test:api": "jest --runInBand --testPathPattern=__tests__/api"
   },
   "dependencies": {
     "@faker-js/faker": "^9.9.0",
@@ -34,6 +36,8 @@
   "devDependencies": {
     "chalk": "^2.4.2",
     "cross-env": "^5.2.1",
-    "nodemon": "^1.19.1"
+    "nodemon": "^1.19.1",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
   }
 }

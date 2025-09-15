@@ -14,6 +14,11 @@ const orderRoutes = require('./order');
 const reviewRoutes = require('./review');
 const wishlistRoutes = require('./wishlist');
 
+// Lightweight health endpoint for readiness/liveness probes
+router.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 // auth routes
 router.use('/auth', authRoutes);
 
