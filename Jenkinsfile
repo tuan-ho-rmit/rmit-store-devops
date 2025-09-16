@@ -65,6 +65,7 @@ pipeline {
                 --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
                 --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
                 --set backend.activeColor=blue --set frontend.activeColor=blue \
+                --set-string mongo.uri=${MONGO_URI} \
                 -f values-staging.yaml
 
             # rollout status
@@ -108,6 +109,7 @@ pipeline {
                 --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
                 --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
                 --set backend.activeColor=blue --set frontend.activeColor=blue \
+                --set-string mongo.uri=${MONGO_URI} \
                 -f values-prod.yaml
 
             # rollout status

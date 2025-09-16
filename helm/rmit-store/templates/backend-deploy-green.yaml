@@ -22,6 +22,7 @@ spec:
       containers:
         - name: backend
           image: {{ .Values.backend.greenImage | default .Values.backend.image | quote }}
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: {{ .Values.backend.port | default 3000 }}

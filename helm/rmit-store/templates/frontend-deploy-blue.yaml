@@ -22,6 +22,7 @@ spec:
       containers:
         - name: frontend
           image: {{ .Values.frontend.blueImage | default .Values.frontend.image | quote }}
+          imagePullPolicy: Always
           ports:
             - containerPort: {{ .Values.frontend.port | default 80 }}
 
