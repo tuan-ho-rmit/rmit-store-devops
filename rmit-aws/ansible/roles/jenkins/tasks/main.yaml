@@ -144,14 +144,14 @@
   set_fact:
     gh_hook: "{{ (gh_hooks.json | selectattr('config.url','equalto', gh_webhook_url) | list | first) | default(None) }}"
 
-- name: Create GitHub webhook (push)
+- name: Ensure GitHub webhook exists (create if missing)
   uri:
     url: "https://api.github.com/repos/{{ github_owner }}/{{ (github_repo | regex_replace('.*/','')) }}/hooks"
     method: POST
     headers:
       Authorization: "token {{ github_token }}"
       Accept: "application/vnd.github+json"
-    status_code: 201
+    status_code: [201, 422]
     body_format: json
     body:
       name: web
@@ -161,7 +161,6 @@
         url: "{{ gh_webhook_url }}"
         content_type: json
         insecure_ssl: "0"
-  when: gh_hook is not defined or gh_hook is none
   register: gh_create
 
 - name: Determine webhook id
@@ -175,4 +174,6 @@
     headers:
       Authorization: "token {{ github_token }}"
       Accept: "application/vnd.github+json"
+    status_code: 204
+  changed_when: false
   when: gh_hook_id is defined and gh_hook_id | length > 0

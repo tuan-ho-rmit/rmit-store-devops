@@ -23,9 +23,9 @@ jenkins:
           - key: "MONGO_URI"
             value: "{{ mongo_uri }}"
           - key: "STAGING_HOST"
-            value: "{{ staging_host | default('') }}"
+            value: "{{ (staging_host if staging_host|default('')|length > 0 else ('rmit-staging.' ~ (base_url | regex_replace('^https?://','') | regex_replace('/.*$','') | replace('.','-')) ~ '.nip.io')) }}"
           - key: "PROD_HOST"
-            value: "{{ prod_host | default('') }}"
+            value: "{{ (prod_host if prod_host|default('')|length > 0 else ('rmit-prod.' ~ (base_url | regex_replace('^https?://','') | regex_replace('/.*$','') | replace('.','-')) ~ '.nip.io')) }}"
 
 unclassified:
   location:

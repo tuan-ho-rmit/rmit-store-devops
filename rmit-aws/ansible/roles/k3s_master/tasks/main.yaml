@@ -22,6 +22,38 @@
   shell: kubectl create ns prod || true
   environment: { KUBECONFIG: /etc/rancher/k3s/k3s.yaml }
 
+- name: Install cert-manager CRDs
+  shell: kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.1/cert-manager.crds.yaml
+  environment: { KUBECONFIG: /etc/rancher/k3s/k3s.yaml }
+
+- name: Install cert-manager (kubectl manifest)
+  shell: kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.1/cert-manager.yaml
+  environment: { KUBECONFIG: /etc/rancher/k3s/k3s.yaml }
+
+- name: Create ClusterIssuer for Let's Encrypt
+  copy:
+    dest: /tmp/cluster-issuer.yaml
+    content: |
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: letsencrypt
+      spec:
+        acme:
+          email: {{ acme_email | default('rmit@rmit-store.vn') }}
+          server: https://acme-v02.api.letsencrypt.org/directory
+          privateKeySecretRef:
+            name: letsencrypt-key
+          solvers:
+          - http01:
+              ingress:
+                class: traefik
+
+- name: Apply ClusterIssuer
+  shell: kubectl apply -f /tmp/cluster-issuer.yaml
+  environment: { KUBECONFIG: /etc/rancher/k3s/k3s.yaml }
+
+
 - name: Copy kubeconfig for later (Jenkins credential)
   copy:
     src: /etc/rancher/k3s/k3s.yaml

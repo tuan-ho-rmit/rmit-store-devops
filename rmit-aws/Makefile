@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 CONTROLLER_PY := $(shell if [ -x .venv/bin/python ]; then echo $(PWD)/.venv/bin/python; else which python3; fi)
 CHECK_MONGO_SSH ?= 0
-SKIP_MONGO ?= 1
+SKIP_MONGO ?= 0
 
 STACK_NET := rmit-net
 STACK_EC2 := rmit-ec2
@@ -61,9 +61,6 @@ inventory:
 	mongo_priv=$$(grep MongoPriv ec2-outputs.env | cut -d= -f2); \
 	master_priv=$$(grep MasterPriv ec2-outputs.env | cut -d= -f2); \
 	base_url="http://$${MasterIP}"; \
-	# derive hostnames for nip.io unless provided via .env overrides \
-	staging_host=$${STAGING_HOST:-rmit-staging.$${MasterIP}.nip.io}; \
-	prod_host=$${PROD_HOST:-rmit-prod.$${MasterIP}.nip.io}; \
 	if [ -z "$$JENKINS_URL_HINT" ] || [ "$$JENKINS_URL_HINT" = "http://" ] || echo "$$JENKINS_URL_HINT" | grep -qi localhost; then JENKINS_URL_HINT="http://$${jenkins_ip}:8080/"; fi; \
 	mkdir -p ansible/group_vars; \
 	printf "dockerhub_user: \"%s\"\n" "$$DOCKERHUB_USER" > ansible/group_vars/all.yaml; \
@@ -80,8 +77,6 @@ inventory:
 	# Jenkins admin (from .env)
 	printf "jenkins_admin_user: \"%s\"\n" "$$JENKINS_ADMIN_USER" >> ansible/group_vars/all.yaml; \
 	printf "jenkins_admin_password: \"%s\"\n" "$$JENKINS_ADMIN_PASSWORD" >> ansible/group_vars/all.yaml; \
-	printf "staging_host: \"%s\"\n" "$$staging_host" >> ansible/group_vars/all.yaml; \
-	printf "prod_host: \"%s\"\n" "$$prod_host" >> ansible/group_vars/all.yaml; \
 	echo "Created ansible/inventory.ini and group_vars/all.yaml"
 
 aws-wait:

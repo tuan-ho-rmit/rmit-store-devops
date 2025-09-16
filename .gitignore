@@ -59,5 +59,6 @@ coverage
 rmit-aws/ec2-outputs.env
 rmit-aws/ansible/inventory.ini
 rmit-aws/ansible/group_vars/all.yaml
+rmit-aws/ansible/ec2-outputs.env
 
 *.pem
