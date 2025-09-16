@@ -1,10 +1,10 @@
 pipeline {
   agent any
   environment {
-    DH_NS     = '<your-dockerhub-username-or-org>'
+    DH_NS     = "${env.DH_NS ?: '<your-dockerhub-username-or-org>'}"
     FRONT_IMG = "docker.io/${DH_NS}/rmit-store-frontend"
     BACK_IMG  = "docker.io/${DH_NS}/rmit-store-backend"
-    BASE_URL  = "http://<MASTER_PUBLIC_IP>"
+    BASE_URL  = "${env.BASE_URL ?: 'http://<MASTER_PUBLIC_IP>'}"
   }
   triggers { githubPush() }
 
@@ -14,8 +14,11 @@ pipeline {
     stage('Server: Unit/API tests'){
       steps {
         dir('server'){
-          sh 'npm ci'
-          sh 'npm test'
+          sh '''
+            docker run --rm \
+              -v $PWD:/app -w /app \
+              node:18-alpine sh -lc "npm ci && npm test"
+          '''
         }
       }
     }
@@ -45,16 +48,27 @@ pipeline {
       steps {
         withCredentials([file(credentialsId: 'kubeconfig-master', variable: 'KUBECONF')]){
           sh """
-            export KUBECONFIG=$KUBECONF
-            kubectl get ns staging || kubectl create ns staging
-            helm upgrade --install rmit-store-staging ./helm/rmit-store -n staging \
-              --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
-              --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
-              --set backend.activeColor=blue --set frontend.activeColor=blue \
-              -f ./helm/rmit-store/values-staging.yaml
+            # kubectl create ns if missing
+            docker run --rm -e KUBECONFIG=/kubeconfig -v $KUBECONF:/kubeconfig \
+              bitnami/kubectl:1.30 get ns staging || \
+            docker run --rm -e KUBECONFIG=/kubeconfig -v $KUBECONF:/kubeconfig \
+              bitnami/kubectl:1.30 create ns staging
 
-            kubectl -n staging rollout status deploy/backend-green --timeout=120s || true
-            kubectl -n staging rollout status deploy/frontend-green --timeout=120s || true
+            # helm upgrade/install
+            docker run --rm -e KUBECONFIG=/kubeconfig \
+              -v $KUBECONF:/kubeconfig \
+              -v $PWD/helm:/helm -w /helm/rmit-store \
+              alpine/helm:3.14.4 upgrade --install rmit-store-staging . -n staging \
+                --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
+                --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
+                --set backend.activeColor=blue --set frontend.activeColor=blue \
+                -f /helm/rmit-store/values-staging.yaml
+
+            # rollout status
+            docker run --rm -e KUBECONFIG=/kubeconfig -v $KUBECONF:/kubeconfig \
+              bitnami/kubectl:1.30 -n staging rollout status deploy/backend-green --timeout=120s || true
+            docker run --rm -e KUBECONFIG=/kubeconfig -v $KUBECONF:/kubeconfig \
+              bitnami/kubectl:1.30 -n staging rollout status deploy/frontend-green --timeout=120s || true
           """
         }
       }
@@ -63,7 +77,7 @@ pipeline {
     stage('Smoke STAGING'){
       steps {
         sh """
-          curl -sSf ${BASE_URL}/staging/api/health
+          docker run --rm curlimages/curl:8.8.0 -fsS ${BASE_URL}/staging/api/health
         """
       }
     }
@@ -72,16 +86,27 @@ pipeline {
       steps {
         withCredentials([file(credentialsId: 'kubeconfig-master', variable: 'KUBECONF')]){
           sh """
-            export KUBECONFIG=$KUBECONF
-            kubectl get ns prod || kubectl create ns prod
-            helm upgrade --install rmit-store ./helm/rmit-store -n prod \
-              --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
-              --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
-              --set backend.activeColor=blue --set frontend.activeColor=blue \
-              -f ./helm/rmit-store/values-prod.yaml
+            # kubectl create ns if missing
+            docker run --rm -e KUBECONFIG=/kubeconfig -v $KUBECONF:/kubeconfig \
+              bitnami/kubectl:1.30 get ns prod || \
+            docker run --rm -e KUBECONFIG=/kubeconfig -v $KUBECONF:/kubeconfig \
+              bitnami/kubectl:1.30 create ns prod
 
-            kubectl -n prod rollout status deploy/backend-green --timeout=120s
-            kubectl -n prod rollout status deploy/frontend-green --timeout=120s
+            # helm upgrade/install
+            docker run --rm -e KUBECONFIG=/kubeconfig \
+              -v $KUBECONF:/kubeconfig \
+              -v $PWD/helm:/helm -w /helm/rmit-store \
+              alpine/helm:3.14.4 upgrade --install rmit-store . -n prod \
+                --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
+                --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
+                --set backend.activeColor=blue --set frontend.activeColor=blue \
+                -f /helm/rmit-store/values-prod.yaml
+
+            # rollout status
+            docker run --rm -e KUBECONFIG=/kubeconfig -v $KUBECONF:/kubeconfig \
+              bitnami/kubectl:1.30 -n prod rollout status deploy/backend-green --timeout=120s
+            docker run --rm -e KUBECONFIG=/kubeconfig -v $KUBECONF:/kubeconfig \
+              bitnami/kubectl:1.30 -n prod rollout status deploy/frontend-green --timeout=120s
           """
         }
       }
@@ -90,7 +115,7 @@ pipeline {
     stage('Smoke GREEN'){
       steps {
         sh """
-          curl -sSf ${BASE_URL}/api/health
+          docker run --rm curlimages/curl:8.8.0 -fsS ${BASE_URL}/api/health
         """
       }
     }
@@ -99,9 +124,10 @@ pipeline {
       steps {
         withCredentials([file(credentialsId: 'kubeconfig-master', variable: 'KUBECONF')]){
           sh """
-            export KUBECONFIG=$KUBECONF
-            kubectl -n prod patch service backend  -p '{"spec":{"selector":{"app":"backend","activeColor":"green"}}}'
-            kubectl -n prod patch service frontend -p '{"spec":{"selector":{"app":"frontend","activeColor":"green"}}}'
+            docker run --rm -e KUBECONFIG=/kubeconfig -v $KUBECONF:/kubeconfig \
+              bitnami/kubectl:1.30 -n prod patch service backend  -p '{"spec":{"selector":{"app":"backend","activeColor":"green"}}}'
+            docker run --rm -e KUBECONFIG=/kubeconfig -v $KUBECONF:/kubeconfig \
+              bitnami/kubectl:1.30 -n prod patch service frontend -p '{"spec":{"selector":{"app":"frontend","activeColor":"green"}}}'
           """
         }
       }
