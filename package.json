@@ -10,7 +10,13 @@
     "postinstall": "npm-run-all --parallel install:*",
     "install:client": "cd client && npm install",
     "install:server": "cd server && npm install",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run test:server && npm run test:ui",
+    "test:server": "cd server && npm test",
+    "test:unit": "cd server && npm run test:unit",
+    "test:integration": "cd server && npm run test:integration",
+    "test:ui": "npx playwright test",
+    "test:watch": "cd server && npm run test:watch",
+    "test:coverage": "cd server && npm test -- --coverage"
   },
   "repository": {
     "type": "git",
@@ -32,7 +38,12 @@
   },
   "homepage": "https://github.com/tomhuynhsg/rmit-ecommerce#readme",
   "devDependencies": {
+    "@types/node": "^24.5.0",
     "cross-env": "^5.2.1",
     "npm-run-all": "^4.1.5"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.55.0",
+    "playwright": "^1.55.0"
   }
 }
