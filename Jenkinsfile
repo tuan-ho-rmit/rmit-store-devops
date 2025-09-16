@@ -61,18 +61,30 @@ pipeline {
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig \
               -v "$PWD"/kubeconfig:/kubeconfig:ro \
               -v "$PWD":/work -w /work/helm/rmit-store \
-              alpine/helm:3.14.4 upgrade --install rmit-store-staging . -n staging \
-                --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
-                --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
-                --set backend.activeColor=blue --set frontend.activeColor=blue \
-                --set-string mongo.uri=${MONGO_URI} \
-                -f values-staging.yaml
+              alpine/helm:3.14.4 sh -lc "\
+                MONGO_FLAG=''; [ -n '${MONGO_URI}' ] && MONGO_FLAG=\"--set-string mongo.uri=${MONGO_URI}\"; \
+                helm upgrade --install rmit-store-staging . -n staging \
+                  --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
+                  --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
+                  --set backend.activeColor=blue --set frontend.activeColor=blue \
+                  -f values-staging.yaml $MONGO_FLAG"
 
             # rollout status
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 -n staging rollout status deploy/backend-green --timeout=120s || true
+              bitnami/kubectl:1.30 -n staging rollout status deploy/backend-green --timeout=300s || true
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 -n staging rollout status deploy/frontend-green --timeout=120s || true
+              bitnami/kubectl:1.30 -n staging rollout status deploy/frontend-green --timeout=300s || true
+
+            # Diagnostics (always print for visibility)
+            echo '--- staging: deploy/rs/pods';
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+              bitnami/kubectl:1.30 -n staging get deploy,rs,pods -o wide || true
+            echo '--- staging: describe backend-green';
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+              bitnami/kubectl:1.30 -n staging describe deploy backend-green | tail -n +1 || true
+            echo '--- staging: backend logs (last 200)';
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+              bitnami/kubectl:1.30 -n staging logs -l app=backend,activeColor=green --tail=200 || true
 
             shred -u kubeconfig || rm -f kubeconfig
           '''
@@ -105,18 +117,19 @@ pipeline {
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig \
               -v "$PWD"/kubeconfig:/kubeconfig:ro \
               -v "$PWD":/work -w /work/helm/rmit-store \
-              alpine/helm:3.14.4 upgrade --install rmit-store . -n prod \
-                --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
-                --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
-                --set backend.activeColor=blue --set frontend.activeColor=blue \
-                --set-string mongo.uri=${MONGO_URI} \
-                -f values-prod.yaml
+              alpine/helm:3.14.4 sh -lc "\
+                MONGO_FLAG=''; [ -n '${MONGO_URI}' ] && MONGO_FLAG=\"--set-string mongo.uri=${MONGO_URI}\"; \
+                helm upgrade --install rmit-store . -n prod \
+                  --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
+                  --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
+                  --set backend.activeColor=blue --set frontend.activeColor=blue \
+                  -f values-prod.yaml $MONGO_FLAG"
 
             # rollout status
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 -n prod rollout status deploy/backend-green --timeout=120s
+              bitnami/kubectl:1.30 -n prod rollout status deploy/backend-green --timeout=300s
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 -n prod rollout status deploy/frontend-green --timeout=120s
+              bitnami/kubectl:1.30 -n prod rollout status deploy/frontend-green --timeout=300s
 
             shred -u kubeconfig || rm -f kubeconfig
           '''
