@@ -4,7 +4,7 @@ pipeline {
     DH_NS     = "${env.DH_NS ?: '<your-dockerhub-username-or-org>'}"
     FRONT_IMG = "docker.io/${DH_NS}/rmit-store-frontend"
     BACK_IMG  = "docker.io/${DH_NS}/rmit-store-backend"
-    BASE_URL  = "${env.BASE_URL ?: 'http://<MASTER_PUBLIC_IP>'}"
+    BASE_URL  = "${env.BASE_URL ?: 'http://rmit-staging.98-86-60-62.nip.io'}"
   }
   triggers { githubPush() }
 
@@ -94,7 +94,7 @@ pipeline {
     stage('Smoke STAGING'){
       steps {
         sh """
-          docker run --rm curlimages/curl:8.8.0 -fsS ${BASE_URL}/staging/api/health
+          docker run --rm curlimages/curl:8.8.0 -fsS ${BASE_URL}/api/health
         """
       }
     }
@@ -138,7 +138,7 @@ pipeline {
     stage('Smoke GREEN'){
       steps {
         sh """
-          docker run --rm curlimages/curl:8.8.0 -fsS ${BASE_URL}/api/health
+          docker run --rm curlimages/curl:8.8.0 -fsS http://rmit-prod.98-86-60-62.nip.io/api/health
         """
       }
     }
