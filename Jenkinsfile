@@ -52,13 +52,13 @@ pipeline {
             cp "$KUBECONF" kubeconfig && chmod 600 kubeconfig
 
             # kubectl create ns if missing
-            docker run --rm -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 get ns staging || \
-            docker run --rm -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 create ns staging
 
             # helm upgrade/install
-            docker run --rm -e KUBECONFIG=/kubeconfig \
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig \
               -v "$PWD"/kubeconfig:/kubeconfig:ro \
               -v "$PWD"/helm:/helm -w /helm/rmit-store \
               alpine/helm:3.14.4 upgrade --install rmit-store-staging . -n staging \
@@ -68,9 +68,9 @@ pipeline {
                 -f /helm/rmit-store/values-staging.yaml
 
             # rollout status
-            docker run --rm -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 -n staging rollout status deploy/backend-green --timeout=120s || true
-            docker run --rm -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 -n staging rollout status deploy/frontend-green --timeout=120s || true
 
             shred -u kubeconfig || rm -f kubeconfig
@@ -95,13 +95,13 @@ pipeline {
             cp "$KUBECONF" kubeconfig && chmod 600 kubeconfig
 
             # kubectl create ns if missing
-            docker run --rm -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 get ns prod || \
-            docker run --rm -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 create ns prod
 
             # helm upgrade/install
-            docker run --rm -e KUBECONFIG=/kubeconfig \
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig \
               -v "$PWD"/kubeconfig:/kubeconfig:ro \
               -v "$PWD"/helm:/helm -w /helm/rmit-store \
               alpine/helm:3.14.4 upgrade --install rmit-store . -n prod \
@@ -111,9 +111,9 @@ pipeline {
                 -f /helm/rmit-store/values-prod.yaml
 
             # rollout status
-            docker run --rm -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 -n prod rollout status deploy/backend-green --timeout=120s
-            docker run --rm -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 -n prod rollout status deploy/frontend-green --timeout=120s
 
             shred -u kubeconfig || rm -f kubeconfig
@@ -136,9 +136,9 @@ pipeline {
           sh '''
             set -e
             cp "$KUBECONF" kubeconfig && chmod 600 kubeconfig
-            docker run --rm -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 -n prod patch service backend  -p '{"spec":{"selector":{"app":"backend","activeColor":"green"}}}'
-            docker run --rm -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+            docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 -n prod patch service frontend -p '{"spec":{"selector":{"app":"frontend","activeColor":"green"}}}'
             shred -u kubeconfig || rm -f kubeconfig
           '''
