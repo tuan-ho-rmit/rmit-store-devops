@@ -58,6 +58,13 @@ pipeline {
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 create ns staging
 
+            # Determine active color (green on first install so Service has endpoints)
+            ACTIVE_COLOR=blue
+            if ! docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                 bitnami/kubectl:1.30 -n staging get svc backend >/dev/null 2>&1; then
+              ACTIVE_COLOR=green
+            fi
+
             # helm upgrade/install (mount repo root)
             MONGO_FLAG=""; [ -n "${MONGO_URI}" ] && MONGO_FLAG="--set-string mongo.uri=${MONGO_URI}";
             if [ -z "$STAGING_HOST" ]; then
@@ -71,7 +78,7 @@ pipeline {
               alpine/helm:3.14.4 upgrade --install rmit-store-staging . -n staging \
                 --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
                 --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
-                --set backend.activeColor=blue --set frontend.activeColor=blue \
+                --set backend.activeColor=${ACTIVE_COLOR} --set frontend.activeColor=${ACTIVE_COLOR} \
                 -f values-staging.yaml ${MONGO_FLAG} ${HOST_FLAG}
 
             # rollout status
@@ -124,6 +131,13 @@ pipeline {
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 create ns prod
 
+            # Determine active color (green on first install so Service has endpoints)
+            ACTIVE_COLOR=blue
+            if ! docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                 bitnami/kubectl:1.30 -n prod get svc backend >/dev/null 2>&1; then
+              ACTIVE_COLOR=green
+            fi
+
             # helm upgrade/install (mount repo root)
             MONGO_FLAG=""; [ -n "${MONGO_URI}" ] && MONGO_FLAG="--set-string mongo.uri=${MONGO_URI}";
             if [ -z "$PROD_HOST" ]; then
@@ -137,7 +151,7 @@ pipeline {
               alpine/helm:3.14.4 upgrade --install rmit-store . -n prod \
                 --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
                 --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
-                --set backend.activeColor=blue --set frontend.activeColor=blue \
+                --set backend.activeColor=${ACTIVE_COLOR} --set frontend.activeColor=${ACTIVE_COLOR} \
                 -f values-prod.yaml ${MONGO_FLAG} ${HOST_FLAG}
 
             # rollout status
