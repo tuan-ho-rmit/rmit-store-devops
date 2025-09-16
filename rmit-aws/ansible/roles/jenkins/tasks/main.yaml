@@ -54,6 +54,36 @@
       CASC_JENKINS_CONFIG: /config/casc.yaml
       JAVA_OPTS: "-Xms256m -Xmx512m"
 
+- name: Install Docker CLI inside Jenkins container
+  shell: |
+    set -e
+    docker exec -u 0 jenkins bash -lc 'apt-get update -y && (apt-get install -y docker.io || apt-get install -y docker-cli || apt-get install -y docker-ce-cli)'
+    docker exec jenkins docker --version
+  register: docker_cli_install
+  changed_when: true
+
+- name: Get docker group gid on host
+  shell: "getent group docker | cut -d':' -f3"
+  register: docker_gid
+  changed_when: false
+
+- name: Map docker group into container and add jenkins user to it
+  shell: |
+    set -e
+    DOCKER_GID="{{ docker_gid.stdout }}"
+    docker exec -u 0 jenkins bash -lc '
+      set -e
+      if getent group docker >/dev/null 2>&1; then
+        groupmod -o -g '"$DOCKER_GID"' docker || true;
+      else
+        groupadd -g '"$DOCKER_GID"' docker || true;
+      fi
+      usermod -aG docker jenkins
+    '
+    # show membership
+    docker exec jenkins id jenkins
+  when: docker_gid.stdout | length > 0
+
 - name: Wait until Jenkins container is running (not restarting)
   shell: |
     set -e
