@@ -57,15 +57,15 @@ pipeline {
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 create ns staging
 
-            # helm upgrade/install
+            # helm upgrade/install (mount repo root)
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig \
               -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              -v "$PWD"/helm:/helm -w /helm/rmit-store \
+              -v "$PWD":/work -w /work/helm/rmit-store \
               alpine/helm:3.14.4 upgrade --install rmit-store-staging . -n staging \
                 --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
                 --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
                 --set backend.activeColor=blue --set frontend.activeColor=blue \
-                -f /helm/rmit-store/values-staging.yaml
+                -f values-staging.yaml
 
             # rollout status
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
@@ -100,15 +100,15 @@ pipeline {
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 create ns prod
 
-            # helm upgrade/install
+            # helm upgrade/install (mount repo root)
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig \
               -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              -v "$PWD"/helm:/helm -w /helm/rmit-store \
+              -v "$PWD":/work -w /work/helm/rmit-store \
               alpine/helm:3.14.4 upgrade --install rmit-store . -n prod \
                 --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
                 --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
                 --set backend.activeColor=blue --set frontend.activeColor=blue \
-                -f /helm/rmit-store/values-prod.yaml
+                -f values-prod.yaml
 
             # rollout status
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \

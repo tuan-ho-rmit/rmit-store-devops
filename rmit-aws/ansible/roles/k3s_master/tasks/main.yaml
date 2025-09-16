@@ -30,6 +30,12 @@
     mode: '0600'
     remote_src: yes
 
+- name: Rewrite kubeconfig server to master private IP (external use)
+  replace:
+    path: /home/ec2-user/kubeconfig.yaml
+    regexp: 'server:\s*https://127.0.0.1:6443'
+    replace: 'server: https://{{ master_private_ip }}:6443'
+
 - name: Slurp kubeconfig (base64) for JCasC
   slurp: { src: /home/ec2-user/kubeconfig.yaml }
   register: kubeconf_b64
