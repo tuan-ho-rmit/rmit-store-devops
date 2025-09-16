@@ -58,16 +58,15 @@ pipeline {
               bitnami/kubectl:1.30 create ns staging
 
             # helm upgrade/install (mount repo root)
+            MONGO_FLAG=""; [ -n "${MONGO_URI}" ] && MONGO_FLAG="--set-string mongo.uri=${MONGO_URI}";
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig \
               -v "$PWD"/kubeconfig:/kubeconfig:ro \
               -v "$PWD":/work -w /work/helm/rmit-store \
-              alpine/helm:3.14.4 sh -lc "\
-                MONGO_FLAG=''; [ -n '${MONGO_URI}' ] && MONGO_FLAG=\"--set-string mongo.uri=${MONGO_URI}\"; \
-                helm upgrade --install rmit-store-staging . -n staging \
-                  --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
-                  --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
-                  --set backend.activeColor=blue --set frontend.activeColor=blue \
-                  -f values-staging.yaml $MONGO_FLAG"
+              alpine/helm:3.14.4 upgrade --install rmit-store-staging . -n staging \
+                --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
+                --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
+                --set backend.activeColor=blue --set frontend.activeColor=blue \
+                -f values-staging.yaml ${MONGO_FLAG}
 
             # rollout status
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
@@ -114,16 +113,15 @@ pipeline {
               bitnami/kubectl:1.30 create ns prod
 
             # helm upgrade/install (mount repo root)
+            MONGO_FLAG=""; [ -n "${MONGO_URI}" ] && MONGO_FLAG="--set-string mongo.uri=${MONGO_URI}";
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig \
               -v "$PWD"/kubeconfig:/kubeconfig:ro \
               -v "$PWD":/work -w /work/helm/rmit-store \
-              alpine/helm:3.14.4 sh -lc "\
-                MONGO_FLAG=''; [ -n '${MONGO_URI}' ] && MONGO_FLAG=\"--set-string mongo.uri=${MONGO_URI}\"; \
-                helm upgrade --install rmit-store . -n prod \
-                  --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
-                  --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
-                  --set backend.activeColor=blue --set frontend.activeColor=blue \
-                  -f values-prod.yaml $MONGO_FLAG"
+              alpine/helm:3.14.4 upgrade --install rmit-store . -n prod \
+                --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
+                --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
+                --set backend.activeColor=blue --set frontend.activeColor=blue \
+                -f values-prod.yaml ${MONGO_FLAG}
 
             # rollout status
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
