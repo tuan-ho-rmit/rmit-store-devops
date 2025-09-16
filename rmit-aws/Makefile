@@ -61,6 +61,9 @@ inventory:
 	mongo_priv=$$(grep MongoPriv ec2-outputs.env | cut -d= -f2); \
 	master_priv=$$(grep MasterPriv ec2-outputs.env | cut -d= -f2); \
 	base_url="http://$${MasterIP}"; \
+	# derive hostnames for nip.io unless provided via .env overrides \
+	staging_host=$${STAGING_HOST:-rmit-staging.$${MasterIP}.nip.io}; \
+	prod_host=$${PROD_HOST:-rmit-prod.$${MasterIP}.nip.io}; \
 	if [ -z "$$JENKINS_URL_HINT" ] || [ "$$JENKINS_URL_HINT" = "http://" ] || echo "$$JENKINS_URL_HINT" | grep -qi localhost; then JENKINS_URL_HINT="http://$${jenkins_ip}:8080/"; fi; \
 	mkdir -p ansible/group_vars; \
 	printf "dockerhub_user: \"%s\"\n" "$$DOCKERHUB_USER" > ansible/group_vars/all.yaml; \
@@ -74,6 +77,8 @@ inventory:
 	printf "master_priv: \"%s\"\n" "$$master_priv" >> ansible/group_vars/all.yaml; \
 	printf "jwt_secret: \"prodsecret\"\n" >> ansible/group_vars/all.yaml; \
 	printf "ansible_python_interpreter: /usr/bin/python3\n" >> ansible/group_vars/all.yaml; \
+	printf "staging_host: \"%s\"\n" "$$staging_host" >> ansible/group_vars/all.yaml; \
+	printf "prod_host: \"%s\"\n" "$$prod_host" >> ansible/group_vars/all.yaml; \
 	echo "Created ansible/inventory.ini and group_vars/all.yaml"
 
 aws-wait:

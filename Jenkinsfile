@@ -4,7 +4,8 @@ pipeline {
     DH_NS     = "${env.DH_NS ?: '<your-dockerhub-username-or-org>'}"
     FRONT_IMG = "docker.io/${DH_NS}/rmit-store-frontend"
     BACK_IMG  = "docker.io/${DH_NS}/rmit-store-backend"
-    BASE_URL  = "${env.BASE_URL ?: 'http://rmit-staging.98-86-60-62.nip.io'}"
+    STAGING_HOST = "${env.STAGING_HOST ?: ''}"
+    PROD_HOST    = "${env.PROD_HOST ?: ''}"
   }
   triggers { githubPush() }
 
@@ -94,7 +95,13 @@ pipeline {
     stage('Smoke STAGING'){
       steps {
         sh """
-          docker run --rm curlimages/curl:8.8.0 -fsS ${BASE_URL}/api/health
+          if [ -z "${STAGING_HOST}" ]; then
+            echo "STAGING_HOST is not set. Provide via JCasC env or .env → Makefile inventory."
+            exit 1
+          fi
+          STAGING_URL="http://${STAGING_HOST}/api/health"
+          echo "Staging smoke URL: $STAGING_URL"
+          docker run --rm curlimages/curl:8.8.0 -fsS "$STAGING_URL"
         """
       }
     }
@@ -138,7 +145,13 @@ pipeline {
     stage('Smoke GREEN'){
       steps {
         sh """
-          docker run --rm curlimages/curl:8.8.0 -fsS http://rmit-prod.98-86-60-62.nip.io/api/health
+          if [ -z "${PROD_HOST}" ]; then
+            echo "PROD_HOST is not set. Provide via JCasC env or .env → Makefile inventory."
+            exit 1
+          fi
+          PROD_URL="http://${PROD_HOST}/api/health"
+          echo "Prod smoke URL: $PROD_URL"
+          docker run --rm curlimages/curl:8.8.0 -fsS "$PROD_URL"
         """
       }
     }
