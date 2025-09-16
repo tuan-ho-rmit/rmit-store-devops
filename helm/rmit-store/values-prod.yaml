@@ -19,4 +19,7 @@ frontend:
   activeColor: "blue"
   port: 80
 
+monitoring:
+  enabled: false
+
 
