@@ -60,6 +60,11 @@ pipeline {
 
             # helm upgrade/install (mount repo root)
             MONGO_FLAG=""; [ -n "${MONGO_URI}" ] && MONGO_FLAG="--set-string mongo.uri=${MONGO_URI}";
+            if [ -z "$STAGING_HOST" ]; then
+              echo "STAGING_HOST is not set. Provide via JCasC env or .env → Makefile inventory."
+              exit 1
+            fi
+            HOST_FLAG="--set host=${STAGING_HOST}"
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig \
               -v "$PWD"/kubeconfig:/kubeconfig:ro \
               -v "$PWD":/work -w /work/helm/rmit-store \
@@ -67,7 +72,7 @@ pipeline {
                 --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
                 --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
                 --set backend.activeColor=blue --set frontend.activeColor=blue \
-                -f values-staging.yaml ${MONGO_FLAG}
+                -f values-staging.yaml ${MONGO_FLAG} ${HOST_FLAG}
 
             # rollout status
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
@@ -121,6 +126,11 @@ pipeline {
 
             # helm upgrade/install (mount repo root)
             MONGO_FLAG=""; [ -n "${MONGO_URI}" ] && MONGO_FLAG="--set-string mongo.uri=${MONGO_URI}";
+            if [ -z "$PROD_HOST" ]; then
+              echo "PROD_HOST is not set. Provide via JCasC env or .env → Makefile inventory."
+              exit 1
+            fi
+            HOST_FLAG="--set host=${PROD_HOST}"
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig \
               -v "$PWD"/kubeconfig:/kubeconfig:ro \
               -v "$PWD":/work -w /work/helm/rmit-store \
@@ -128,7 +138,7 @@ pipeline {
                 --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
                 --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
                 --set backend.activeColor=blue --set frontend.activeColor=blue \
-                -f values-prod.yaml ${MONGO_FLAG}
+                -f values-prod.yaml ${MONGO_FLAG} ${HOST_FLAG}
 
             # rollout status
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \

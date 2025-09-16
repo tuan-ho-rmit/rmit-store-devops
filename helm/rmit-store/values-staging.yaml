@@ -1,7 +1,9 @@
 mongo:
-  uri: "mongodb://0.0.0.0:27017/rmit"
+  # Jenkins sets this via --set-string mongo.uri=...
+  uri: ""
 
-host: "rmit-staging.98-86-60-62.nip.io"
+# Jenkins sets this via --set host=$STAGING_HOST
+host: ""
 
 backend:
   image: "docker.io/toeho/rmit-store-backend:latest"
