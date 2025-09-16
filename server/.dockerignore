@@ -1,0 +1,4 @@
+# Do not bake local development env into images
+.env
+node_modules
+npm-debug.log*

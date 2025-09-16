@@ -1,0 +1,4 @@
+# Prevent local dotenv from overriding build-time API_URL
+.env
+node_modules
+npm-debug.log*

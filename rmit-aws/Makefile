@@ -77,6 +77,9 @@ inventory:
 	printf "master_priv: \"%s\"\n" "$$master_priv" >> ansible/group_vars/all.yaml; \
 	printf "jwt_secret: \"prodsecret\"\n" >> ansible/group_vars/all.yaml; \
 	printf "ansible_python_interpreter: /usr/bin/python3\n" >> ansible/group_vars/all.yaml; \
+	# Jenkins admin (from .env)
+	printf "jenkins_admin_user: \"%s\"\n" "$$JENKINS_ADMIN_USER" >> ansible/group_vars/all.yaml; \
+	printf "jenkins_admin_password: \"%s\"\n" "$$JENKINS_ADMIN_PASSWORD" >> ansible/group_vars/all.yaml; \
 	printf "staging_host: \"%s\"\n" "$$staging_host" >> ansible/group_vars/all.yaml; \
 	printf "prod_host: \"%s\"\n" "$$prod_host" >> ansible/group_vars/all.yaml; \
 	echo "Created ansible/inventory.ini and group_vars/all.yaml"

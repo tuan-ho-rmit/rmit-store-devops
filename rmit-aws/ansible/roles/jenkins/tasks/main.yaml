@@ -52,7 +52,7 @@
       - /opt/jenkins:/config
     env:
       CASC_JENKINS_CONFIG: /config/casc.yaml
-      JAVA_OPTS: "-Xms256m -Xmx512m"
+      JAVA_OPTS: "-Xms256m -Xmx512m -Djenkins.install.runSetupWizard=false"
 
 - name: Install Docker CLI inside Jenkins container
   shell: |
@@ -124,3 +124,55 @@
   docker_container:
     name: jenkins
     restart: yes
+
+- name: Compute GitHub webhook URL
+  set_fact:
+    gh_webhook_url: "{{ jenkins_url_hint | regex_replace('/?$', '/') }}github-webhook/"
+
+- name: List existing GitHub webhooks
+  uri:
+    url: "https://api.github.com/repos/{{ github_owner }}/{{ (github_repo | regex_replace('.*/','')) }}/hooks"
+    method: GET
+    headers:
+      Authorization: "token {{ github_token }}"
+      Accept: "application/vnd.github+json"
+    return_content: true
+  register: gh_hooks
+  changed_when: false
+
+- name: Check if webhook exists
+  set_fact:
+    gh_hook: "{{ (gh_hooks.json | selectattr('config.url','equalto', gh_webhook_url) | list | first) | default(None) }}"
+
+- name: Create GitHub webhook (push)
+  uri:
+    url: "https://api.github.com/repos/{{ github_owner }}/{{ (github_repo | regex_replace('.*/','')) }}/hooks"
+    method: POST
+    headers:
+      Authorization: "token {{ github_token }}"
+      Accept: "application/vnd.github+json"
+    status_code: 201
+    body_format: json
+    body:
+      name: web
+      active: true
+      events: [push]
+      config:
+        url: "{{ gh_webhook_url }}"
+        content_type: json
+        insecure_ssl: "0"
+  when: gh_hook is not defined or gh_hook is none
+  register: gh_create
+
+- name: Determine webhook id
+  set_fact:
+    gh_hook_id: "{{ (gh_hook.id | default('')) if (gh_hook is defined and gh_hook is not none) else (gh_create.json.id | default('')) }}"
+
+- name: Ping webhook
+  uri:
+    url: "https://api.github.com/repos/{{ github_owner }}/{{ (github_repo | regex_replace('.*/','')) }}/hooks/{{ gh_hook_id }}/pings"
+    method: POST
+    headers:
+      Authorization: "token {{ github_token }}"
+      Accept: "application/vnd.github+json"
+  when: gh_hook_id is defined and gh_hook_id | length > 0

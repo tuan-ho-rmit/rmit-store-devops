@@ -5,6 +5,10 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+
+# Allow API base URL to be injected at build time; default to same-origin '/api'
+ARG API_URL=/api
+ENV API_URL=${API_URL}
 RUN npm run build
 
 FROM nginx:alpine

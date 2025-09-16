@@ -28,7 +28,8 @@ pipeline {
       steps {
         sh """
           docker build -t ${BACK_IMG}:${GIT_COMMIT}  ./server
-          docker build -t ${FRONT_IMG}:${GIT_COMMIT} ./client
+          # Build frontend with API_URL pointing to same-origin /api
+          docker build --build-arg API_URL=/api -t ${FRONT_IMG}:${GIT_COMMIT} ./client
         """
       }
     }
