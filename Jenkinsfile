@@ -36,11 +36,11 @@ pipeline {
     stage('Push to Docker Hub'){
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DH_USER', passwordVariable: 'DH_TOKEN')]) {
-          sh """
+          sh '''
             echo "$DH_TOKEN" | docker login -u "$DH_USER" --password-stdin
             docker push ${BACK_IMG}:${GIT_COMMIT}
             docker push ${FRONT_IMG}:${GIT_COMMIT}
-          """
+          '''
         }
       }
     }
@@ -94,15 +94,15 @@ pipeline {
 
     stage('Smoke STAGING'){
       steps {
-        sh """
-          if [ -z "${STAGING_HOST}" ]; then
+        sh '''
+          if [ -z "$STAGING_HOST" ]; then
             echo "STAGING_HOST is not set. Provide via JCasC env or .env → Makefile inventory."
             exit 1
           fi
-          STAGING_URL="http://${STAGING_HOST}/api/health"
+          STAGING_URL="http://$STAGING_HOST/api/health"
           echo "Staging smoke URL: $STAGING_URL"
           docker run --rm curlimages/curl:8.8.0 -fsS "$STAGING_URL"
-        """
+        '''
       }
     }
 
@@ -144,15 +144,15 @@ pipeline {
 
     stage('Smoke GREEN'){
       steps {
-        sh """
-          if [ -z "${PROD_HOST}" ]; then
+        sh '''
+          if [ -z "$PROD_HOST" ]; then
             echo "PROD_HOST is not set. Provide via JCasC env or .env → Makefile inventory."
             exit 1
           fi
-          PROD_URL="http://${PROD_HOST}/api/health"
+          PROD_URL="http://$PROD_HOST/api/health"
           echo "Prod smoke URL: $PROD_URL"
           docker run --rm curlimages/curl:8.8.0 -fsS "$PROD_URL"
-        """
+        '''
       }
     }
 
