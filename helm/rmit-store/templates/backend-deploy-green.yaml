@@ -23,7 +23,8 @@ spec:
         - name: backend
           image: {{ .Values.backend.greenImage | default .Values.backend.image | quote }}
           ports:
-            - containerPort: {{ .Values.backend.port | default 3000 }}
+            - name: http
+              containerPort: {{ .Values.backend.port | default 3000 }}
           env:
             - name: MONGO_URI
               valueFrom:

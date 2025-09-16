@@ -1,0 +1,85 @@
+- name: "Gather master facts so workers can read private IP"
+  setup:
+  delegate_to: "{{ groups['k3s_master'][0] }}"
+  run_once: true
+
+- name: "Diagnostics: master connectivity from worker"
+  shell: |
+    set -e
+    MASTER="{{ hostvars[groups['k3s_master'][0]].master_private_ip | default(hostvars[groups['k3s_master'][0]].ansible_default_ipv4.address | default(master_priv | default(''))) }}"
+    echo "MASTER_PRIV=$MASTER"
+    echo "PING:" && ping -c1 -W1 "$MASTER" || echo "ping failed"
+    echo "TCP 6443 from worker -> master:" && timeout 3 bash -c "cat < /dev/null > /dev/tcp/${MASTER}/6443" && echo open || echo closed
+  args: { executable: /bin/bash }
+  register: connectivity_diag
+  changed_when: false
+  failed_when: false
+
+- name: "Diagnostics output: worker -> master"
+  debug:
+    var: connectivity_diag.stdout_lines
+
+- name: "Check reachability to master:6443 from worker (quick fail)"
+  shell: |
+    MASTER="{{ hostvars[groups['k3s_master'][0]].master_private_ip | default(hostvars[groups['k3s_master'][0]].ansible_default_ipv4.address | default(master_priv | default(''))) }}"
+    timeout 3 bash -c "cat < /dev/null > /dev/tcp/${MASTER}/6443"
+  args: { executable: /bin/bash }
+  register: port_check
+  retries: 12
+  delay: 5
+  until: port_check.rc == 0
+  when: (hostvars[groups['k3s_master'][0]].master_private_ip | default(hostvars[groups['k3s_master'][0]].ansible_default_ipv4.address | default(master_priv | default('')))) | length > 0
+
+- name: Set join variables from master facts
+  set_fact:
+    master_for_join: "{{ hostvars[groups['k3s_master'][0]].master_private_ip | default(hostvars[groups['k3s_master'][0]].ansible_default_ipv4.address | default(master_priv | default(''))) }}"
+    token_for_join: "{{ hostvars[groups['k3s_master'][0]].k3s_token | default('') }}"
+
+- name: "Debug K3S_URL and K3S_TOKEN for join"
+  debug:
+    msg: "K3S_URL=https://{{ master_for_join }}:6443, K3S_TOKEN_LEN={{ token_for_join | length }}"
+
+- name: "Resolve master private IP via metadata (delegated) when missing"
+  command: curl -s http://169.254.169.254/latest/meta-data/local-ipv4
+  register: master_priv_meta
+  delegate_to: "{{ groups['k3s_master'][0] }}"
+  when: master_for_join | length == 0
+  changed_when: false
+
+- name: "Adopt delegated master IP"
+  set_fact:
+    master_for_join: "{{ master_priv_meta.stdout }}"
+  when: master_for_join | length == 0 and (master_priv_meta.stdout | length) > 0
+
+- name: "Read node token from master (fallback)"
+  become: yes
+  slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: token_slurp
+  delegate_to: "{{ groups['k3s_master'][0] }}"
+  when: token_for_join | length == 0
+
+- name: "Set token from slurped content"
+  set_fact:
+    token_for_join: "{{ token_slurp.content | b64decode | trim }}"
+  when: token_for_join | length == 0
+
+- name: "Fail if join variables are missing"
+  fail:
+    msg: "Missing MASTER or TOKEN (MASTER='{{ master_for_join }}' TOKEN_len={{ token_for_join | length }})"
+  when: master_for_join | length == 0 or token_for_join | length == 0
+
+- name: Join k3s agent
+  shell: curl -sfL https://get.k3s.io | sh -
+  args: { executable: /bin/bash }
+  environment:
+    K3S_URL: "https://{{ master_for_join }}:6443"
+    K3S_TOKEN: "{{ token_for_join }}"
+
+- name: Wait for k3s agent to be active
+  shell: systemctl is-active --quiet k3s-agent
+  register: agent_active
+  retries: 30
+  delay: 5
+  until: agent_active.rc == 0
+  changed_when: false

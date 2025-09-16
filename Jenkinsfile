@@ -41,11 +41,39 @@ pipeline {
       }
     }
 
+    stage('Deploy STAGING'){
+      steps {
+        withCredentials([file(credentialsId: 'kubeconfig-master', variable: 'KUBECONF')]){
+          sh """
+            export KUBECONFIG=$KUBECONF
+            kubectl get ns staging || kubectl create ns staging
+            helm upgrade --install rmit-store-staging ./helm/rmit-store -n staging \
+              --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
+              --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \
+              --set backend.activeColor=blue --set frontend.activeColor=blue \
+              -f ./helm/rmit-store/values-staging.yaml
+
+            kubectl -n staging rollout status deploy/backend-green --timeout=120s || true
+            kubectl -n staging rollout status deploy/frontend-green --timeout=120s || true
+          """
+        }
+      }
+    }
+
+    stage('Smoke STAGING'){
+      steps {
+        sh """
+          curl -sSf ${BASE_URL}/staging/api/health
+        """
+      }
+    }
+
     stage('Deploy GREEN (prod)'){
       steps {
         withCredentials([file(credentialsId: 'kubeconfig-master', variable: 'KUBECONF')]){
           sh """
             export KUBECONFIG=$KUBECONF
+            kubectl get ns prod || kubectl create ns prod
             helm upgrade --install rmit-store ./helm/rmit-store -n prod \
               --set backend.greenImage=${BACK_IMG}:${GIT_COMMIT} \
               --set frontend.greenImage=${FRONT_IMG}:${GIT_COMMIT} \

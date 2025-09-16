@@ -19,6 +19,7 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.env
 
 # logs
 logs
@@ -53,3 +54,10 @@ coverage
 
 # temporary folders
 .tmp
+
+.venv
+rmit-aws/ec2-outputs.env
+rmit-aws/ansible/inventory.ini
+rmit-aws/ansible/group_vars/all.yaml
+
+*.pem

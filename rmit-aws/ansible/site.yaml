@@ -1,0 +1,19 @@
+- hosts: all
+  become: yes
+  roles: [common]
+
+- hosts: mongo
+  become: yes
+  roles: [mongo]
+
+- hosts: k3s_master
+  become: yes
+  roles: [k3s_master]
+
+- hosts: k3s_workers
+  become: yes
+  roles: [k3s_worker]
+
+- hosts: jenkins
+  become: yes
+  roles: [jenkins]

@@ -1,0 +1,60 @@
+jenkins:
+  systemMessage: "RMIT Jenkins (auto-configured via JCasC)"
+  numExecutors: 2
+  mode: NORMAL
+
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: "DH_NS"
+            value: "{{ dockerhub_user }}"
+          - key: "BASE_URL"
+            value: "{{ base_url }}"
+
+unclassified:
+  location:
+    url: "{{ jenkins_url_hint }}"
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              id: "dockerhub"
+              description: "Docker Hub credentials"
+              username: "{{ dockerhub_user }}"
+              password: "{{ dockerhub_pat }}"
+              scope: GLOBAL
+          - string:
+              id: "github-token"
+              description: "GitHub token"
+              secret: "{{ github_token }}"
+              scope: GLOBAL
+          - file:
+              id: "kubeconfig-master"
+              description: "k3s kubeconfig"
+              fileName: "kubeconfig.yaml"
+              secretBytes: "{{ kubeconfig_b64 }}"
+              scope: GLOBAL
+
+jobs:
+  - script: |
+      pipelineJob('RMIT-Store') {
+        description('CI/CD pipeline for RMIT Store')
+        definition {
+          cpsScm {
+            lightweight(true)
+            scm {
+              git {
+                remote {
+                  url('{{ github_repo }}')
+                  credentials('github-token')
+                }
+                branches('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+          }
+        }
+        triggers { githubPush() }
+      }

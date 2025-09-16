@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'RMIT: 5 EC2 instances (lab-safe, no IAM roles)'
+
+Parameters:
+  SubnetIdA:  { Type: AWS::EC2::Subnet::Id }
+  SubnetIdB:  { Type: AWS::EC2::Subnet::Id }
+  JenkinsSG:  { Type: AWS::EC2::SecurityGroup::Id }
+  MasterSG:   { Type: AWS::EC2::SecurityGroup::Id }
+  WorkerSG:   { Type: AWS::EC2::SecurityGroup::Id }
+  MongoSG:    { Type: AWS::EC2::SecurityGroup::Id }
+  KeyName:    { Type: AWS::EC2::KeyPair::KeyName }
+  TypeJenkins:{ Type: String, Default: t3.micro }
+  TypeMaster: { Type: String, Default: t3.micro }
+  TypeWorker: { Type: String, Default: t3.micro }
+  TypeMongo:  { Type: String, Default: t3.micro }
+  UbuntuAmiParam:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64
+
+Conditions:
+  UseSSM: !Equals [ !Ref UbuntuAmiParam, '']  # false when default populated (SSM allowed)
+
+Mappings:
+  RegionToAmi:
+    ap-southeast-2:
+      AMI: ami-xxxxxxxxxxxxxxxxx
+
+Resources:
+  Jenkins:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !If [ UseSSM, !FindInMap [RegionToAmi, !Ref 'AWS::Region', AMI], !Ref UbuntuAmiParam ]
+      InstanceType: !Ref TypeJenkins
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          SubnetId: !Ref SubnetIdA
+          GroupSet: [!Ref JenkinsSG]
+      Tags: [{Key: Name, Value: jenkins}]
+
+  Master:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !If [ UseSSM, !FindInMap [RegionToAmi, !Ref 'AWS::Region', AMI], !Ref UbuntuAmiParam ]
+      InstanceType: !Ref TypeMaster
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          SubnetId: !Ref SubnetIdA
+          GroupSet: [!Ref MasterSG]
+      Tags: [{Key: Name, Value: k3s-master}]
+
+  ClientWorker:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !If [ UseSSM, !FindInMap [RegionToAmi, !Ref 'AWS::Region', AMI], !Ref UbuntuAmiParam ]
+      InstanceType: !Ref TypeWorker
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          SubnetId: !Ref SubnetIdB
+          GroupSet: [!Ref WorkerSG]
+      Tags: [{Key: Name, Value: k3s-client}]
+
+  ServerWorker:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !If [ UseSSM, !FindInMap [RegionToAmi, !Ref 'AWS::Region', AMI], !Ref UbuntuAmiParam ]
+      InstanceType: !Ref TypeWorker
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          SubnetId: !Ref SubnetIdB
+          GroupSet: [!Ref WorkerSG]
+      Tags: [{Key: Name, Value: k3s-server}]
+
+  Mongo:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !If [ UseSSM, !FindInMap [RegionToAmi, !Ref 'AWS::Region', AMI], !Ref UbuntuAmiParam ]
+      InstanceType: !Ref TypeMongo
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          SubnetId: !Ref SubnetIdA
+          GroupSet: [!Ref MongoSG]
+      Tags: [{Key: Name, Value: mongo}]
+
+Outputs:
+  JenkinsIP:   { Value: !GetAtt Jenkins.PublicIp }
+  MasterIP:    { Value: !GetAtt Master.PublicIp }
+  ClientIP:    { Value: !GetAtt ClientWorker.PublicIp }
+  ServerIP:    { Value: !GetAtt ServerWorker.PublicIp }
+  MongoIPPub:  { Value: !GetAtt Mongo.PublicIp }
+  JenkinsPriv: { Value: !GetAtt Jenkins.PrivateIp }
+  MasterPriv:  { Value: !GetAtt Master.PrivateIp }
+  ClientPriv:  { Value: !GetAtt ClientWorker.PrivateIp }
+  ServerPriv:  { Value: !GetAtt ServerWorker.PrivateIp }
+  MongoPriv:   { Value: !GetAtt Mongo.PrivateIp }

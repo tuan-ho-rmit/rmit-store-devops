@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'RMIT: VPC + 2 public subnets + IGW + routes + SGs (lab-safe)'
+
+Parameters:
+  ProjectTag: { Type: String, Default: rmit }
+  CidrBlock:  { Type: String, Default: 10.10.0.0/16 }
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref CidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags: [{Key: Project, Value: !Ref ProjectTag}]
+
+  IGW: { Type: AWS::EC2::InternetGateway }
+
+  VPCIGWAttach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: { InternetGatewayId: !Ref IGW, VpcId: !Ref VPC }
+
+  PubSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.10.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+
+  PubSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.10.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+
+  PubRouteTable: { Type: AWS::EC2::RouteTable, Properties: { VpcId: !Ref VPC } }
+  PubRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PubRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+  PubAssocA: { Type: AWS::EC2::SubnetRouteTableAssociation, Properties: { SubnetId: !Ref PubSubnetA, RouteTableId: !Ref PubRouteTable } }
+  PubAssocB: { Type: AWS::EC2::SubnetRouteTableAssociation, Properties: { SubnetId: !Ref PubSubnetB, RouteTableId: !Ref PubRouteTable } }
+
+  JenkinsSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Jenkins
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 22,   ToPort: 22,   CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 8080, ToPort: 8080, CidrIp: 0.0.0.0/0 }
+
+  MasterSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: k3s-master
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 22,  ToPort: 22,  CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 80,  ToPort: 80,  CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 6443, ToPort: 6443, SourceSecurityGroupId: !Ref JenkinsSG }
+        - { IpProtocol: tcp, FromPort: 6443, ToPort: 6443, SourceSecurityGroupId: !Ref MasterSG }
+        - { IpProtocol: tcp, FromPort: 6443, ToPort: 6443, SourceSecurityGroupId: !Ref WorkerSG }
+
+  WorkerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: k3s-workers
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 22, ToPort: 22, CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: -1, FromPort: -1, ToPort: -1, SourceSecurityGroupId: !Ref MasterSG }
+        - { IpProtocol: -1, FromPort: -1, ToPort: -1, SourceSecurityGroupId: !Ref WorkerSG }
+
+  MongoSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Mongo-only-from-cluster
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 27017, ToPort: 27017, SourceSecurityGroupId: !Ref MasterSG }
+        - { IpProtocol: tcp, FromPort: 27017, ToPort: 27017, SourceSecurityGroupId: !Ref WorkerSG }
+
+Outputs:
+  VpcId:      { Value: !Ref VPC }
+  PubSubnetA: { Value: !Ref PubSubnetA }
+  PubSubnetB: { Value: !Ref PubSubnetB }
+  JenkinsSG:  { Value: !Ref JenkinsSG }
+  MasterSG:   { Value: !Ref MasterSG }
+  WorkerSG:   { Value: !Ref WorkerSG }
+  MongoSG:    { Value: !Ref MongoSG }

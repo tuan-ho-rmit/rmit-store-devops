@@ -1,0 +1,16 @@
+- name: Install base packages (Amazon Linux 2023 via dnf)
+  dnf:
+    name:
+      - python3
+      - git
+      - unzip
+      - docker
+    state: present
+    update_cache: yes
+    allowerasing: yes
+
+- name: Enable docker
+  systemd: { name: docker, state: started, enabled: yes }
+
+- name: Add ubuntu to docker group
+  user: { name: ec2-user, groups: docker, append: yes }

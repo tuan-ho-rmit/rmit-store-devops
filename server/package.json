@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@faker-js/faker": "^9.9.0",
+    "prom-client": "^15.1.2",
     "aws-sdk": "^2.799.0",
     "axios": "^0.21.1",
     "bcryptjs": "^2.4.3",

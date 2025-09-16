@@ -1,0 +1,96 @@
+- name: Create Jenkins config dir
+  file: { path: /opt/jenkins, state: directory, mode: '0755' }
+
+- name: Ensure Jenkins home dir exists
+  file:
+    path: /var/jenkins_home
+    state: directory
+    owner: 1000
+    group: 1000
+    mode: '0775'
+    recurse: yes
+
+- name: Stop Jenkins container if running (to fix perms)
+  docker_container:
+    name: jenkins
+    state: stopped
+  ignore_errors: true
+
+- name: Write plugins.txt
+  copy:
+    dest: /opt/jenkins/plugins.txt
+    content: |
+      git
+      workflow-aggregator
+      blueocean
+      docker-workflow
+      email-ext
+      configuration-as-code
+      kubernetes-cli
+      github
+      github-branch-source
+      job-dsl
+
+- name: Render casc.yaml from template (inject secrets)
+  template:
+    src: "{{ playbook_dir }}/../jenkins/casc.yaml.j2"
+    dest: /opt/jenkins/casc.yaml
+    mode: '0644'
+  vars:
+    kubeconfig_b64: "{{ hostvars[groups['k3s_master'][0]].kubeconfig_b64 }}"
+
+- name: Run Jenkins container
+  docker_container:
+    name: jenkins
+    image: jenkins/jenkins:lts
+    restart_policy: unless-stopped
+    state: started
+    published_ports: ["8080:8080","50000:50000"]
+    volumes:
+      - /var/jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/jenkins:/config
+    env:
+      CASC_JENKINS_CONFIG: /config/casc.yaml
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+
+- name: Wait until Jenkins container is running (not restarting)
+  shell: |
+    set -e
+    docker inspect --format "{{'{{'}}.State.Running{{'}}'}} {{'{{'}}.State.Restarting{{'}}'}}" jenkins 2>/dev/null | grep -q "^true false$"
+  register: jenkins_running
+  retries: 30
+  delay: 5
+  until: jenkins_running.rc == 0
+  changed_when: false
+
+- name: Diagnostics when Jenkins is not healthy
+  shell: |
+    echo '--- docker ps:'
+    docker ps -a --filter name=jenkins
+    echo '--- inspect:'
+    docker inspect jenkins | sed -n '1,120p'
+    echo '--- last 200 logs:'
+    docker logs --tail=200 jenkins | sed -n '1,200p'
+  when: jenkins_running is failed
+  register: jenkins_diag
+  failed_when: false
+  changed_when: false
+  ignore_errors: true
+
+- name: Show Jenkins diagnostics
+  debug:
+    var: jenkins_diag.stdout_lines
+  when: jenkins_diag is defined
+
+- name: Install plugins via CLI
+  shell: docker exec jenkins jenkins-plugin-cli -f /config/plugins.txt
+  register: plugin_cli
+  retries: 8
+  delay: 10
+  until: plugin_cli.rc == 0
+
+- name: Restart Jenkins to load plugins + JCasC
+  docker_container:
+    name: jenkins
+    restart: yes

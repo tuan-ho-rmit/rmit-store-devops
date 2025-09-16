@@ -1,10 +1,10 @@
 mongo:
-  uri: "mongodb://<MONGO_PRIVATE_IP>:27017/rmit"
+  uri: "mongodb://0.0.0.0:27017/rmit"
 
 backend:
-  image: "docker.io/<ns>/rmit-store-backend:latest"
-  blueImage:  "docker.io/<ns>/rmit-store-backend:<OLD_TAG>"
-  greenImage: "docker.io/<ns>/rmit-store-backend:<NEW_TAG>"
+  image: "docker.io/toeho/rmit-store-backend:latest"
+  blueImage:  "docker.io/toeho/rmit-store-backend:latest"
+  greenImage: "docker.io/toeho/rmit-store-backend:latest"
   env:
     JWT_SECRET: "prodsecret"
   replicas: 1
@@ -12,9 +12,9 @@ backend:
   port: 3000
 
 frontend:
-  image: "docker.io/<ns>/rmit-store-frontend:latest"
-  blueImage:  "docker.io/<ns>/rmit-store-frontend:<OLD_TAG>"
-  greenImage: "docker.io/<ns>/rmit-store-frontend:<NEW_TAG>"
+  image: "docker.io/toeho/rmit-store-frontend:latest"
+  blueImage:  "docker.io/toeho/rmit-store-frontend:latest"
+  greenImage: "docker.io/toeho/rmit-store-frontend:latest"
   replicas: 1
   activeColor: "blue"
   port: 80

@@ -1,0 +1,12 @@
+- name: Create mongo data dir
+  file: { path: /var/lib/mongo, state: directory, owner: root, group: root, mode: '0755' }
+
+- name: Run mongo
+  docker_container:
+    name: mongo-prod
+    image: mongo:6
+    state: started
+    restart_policy: unless-stopped
+    published_ports: ["27017:27017"]
+    volumes:
+      - /var/lib/mongo:/data/db

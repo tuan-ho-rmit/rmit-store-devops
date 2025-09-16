@@ -1,0 +1,39 @@
+- name: Install k3s server (Traefik enabled)
+  shell: curl -sfL https://get.k3s.io | sh -s -
+
+- name: Read node token
+  slurp: { src: /var/lib/rancher/k3s/server/node-token }
+  register: nodetoken_raw
+
+- name: Save facts for workers and Jenkins (cacheable)
+  set_fact:
+    k3s_token: "{{ nodetoken_raw.content | b64decode | trim }}"
+    master_private_ip: "{{ ansible_default_ipv4.address }}"
+    cacheable: yes
+
+- name: Wait for k3s API to be ready on master
+  wait_for:
+    host: 127.0.0.1
+    port: 6443
+    delay: 5
+    timeout: 300
+
+- name: Ensure namespace prod
+  shell: kubectl create ns prod || true
+  environment: { KUBECONFIG: /etc/rancher/k3s/k3s.yaml }
+
+- name: Copy kubeconfig for later (Jenkins credential)
+  copy:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: /home/ec2-user/kubeconfig.yaml
+    owner: ec2-user
+    mode: '0600'
+    remote_src: yes
+
+- name: Slurp kubeconfig (base64) for JCasC
+  slurp: { src: /home/ec2-user/kubeconfig.yaml }
+  register: kubeconf_b64
+
+- name: Set kubeconfig_b64 fact (for jenkins role)
+  set_fact:
+    kubeconfig_b64: "{{ kubeconf_b64.content }}"
