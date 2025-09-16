@@ -17,8 +17,10 @@ spec:
         app: frontend
         activeColor: green
     spec:
+      {{- with .Values.frontend.nodeSelector }}
       nodeSelector:
-        tier: frontend
+{{ toYaml . | indent 8 }}
+      {{- end }}
       containers:
         - name: frontend
           image: {{ .Values.frontend.greenImage | default .Values.frontend.image | quote }}

@@ -17,8 +17,10 @@ spec:
         app: backend
         activeColor: green
     spec:
+      {{- with .Values.backend.nodeSelector }}
       nodeSelector:
-        tier: backend
+{{ toYaml . | indent 8 }}
+      {{- end }}
       containers:
         - name: backend
           image: {{ .Values.backend.greenImage | default .Values.backend.image | quote }}
