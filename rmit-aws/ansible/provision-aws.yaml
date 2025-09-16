@@ -13,11 +13,23 @@
     type_mongo:   "{{ lookup('env','TYPE_MONGO')   | default('t3.micro', true) }}"
     ami_param:    "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64"
     skip_eip:     "{{ lookup('env','SKIP_EIP') | default('0', true) }}"
+    ssh_cidr_env: "{{ lookup('env','SSH_CIDR') | default('', true) }}"
 
   collections:
     - amazon.aws
 
   tasks:
+    - name: Detect controller public IP (for SSH CIDR) when SSH_CIDR not provided
+      uri:
+        url: https://api.ipify.org
+        method: GET
+        return_content: yes
+      register: ipify
+      when: ssh_cidr_env | length == 0
+
+    - name: Set ssh_cidr fact
+      set_fact:
+        ssh_cidr: "{{ (ssh_cidr_env if (ssh_cidr_env | length) > 0 else ipify.content) ~ '/32' }}"
     - name: Fail fast if EC2_KEY_NAME is not set
       assert:
         that:
@@ -144,6 +156,7 @@
         - name: rmit-mongo-sg
           desc: Mongo-only-from-cluster
           rules:
+            - { proto: tcp, from_port: 22, to_port: 22, cidr_ip: "{{ ssh_cidr }}" }
             - { proto: tcp, from_port: 27017, to_port: 27017, cidr_ip: 10.10.0.0/16 }
 
     - name: Launch EC2 instances

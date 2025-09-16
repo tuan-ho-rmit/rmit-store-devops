@@ -10,3 +10,71 @@
     published_ports: ["27017:27017"]
     volumes:
       - /var/lib/mongo:/data/db
+
+# --- One-time seed workflow ---
+
+- name: Wait for Mongo TCP 27017 on host
+  wait_for:
+    host: 127.0.0.1
+    port: 27017
+    delay: 2
+    timeout: 300
+  register: mongo_tcp
+  ignore_errors: true
+  changed_when: false
+
+- name: Diagnostics if Mongo not reachable
+  shell: |
+    echo '--- docker ps:' && docker ps -a --filter name=mongo-prod || true
+    echo '--- inspect (head):' && docker inspect mongo-prod | sed -n '1,120p' || true
+    echo '--- last logs:' && docker logs --tail=200 mongo-prod || true
+  when: mongo_tcp is failed
+  register: mongo_diag
+  failed_when: false
+  changed_when: false
+
+- name: Show diagnostics
+  debug:
+    var: mongo_diag.stdout_lines
+  when: mongo_diag is defined
+
+- name: Fail when Mongo not reachable
+  fail:
+    msg: "Mongo not reachable on 127.0.0.1:27017. See diagnostics above."
+  when: mongo_tcp is failed
+
+- name: Check if database has already been seeded
+  stat:
+    path: /var/lib/mongo/.seeded
+  register: seeded_flag
+
+- name: Ensure code workspace exists for seeding
+  file: { path: /opt/rmit, state: directory, mode: '0755' }
+  when: not seeded_flag.stat.exists and (mongo_tcp is succeeded)
+
+- name: Fetch server code for seeding (clone or pull)
+  shell: |
+    set -e
+    if [ -d /opt/rmit/server/.git ]; then
+      cd /opt/rmit/server && git pull --ff-only
+    else
+      tmpdir=$(mktemp -d)
+      git clone --depth 1 {{ github_repo }} "$tmpdir/repo"
+      rm -rf /opt/rmit/server && mv "$tmpdir/repo/server" /opt/rmit/server
+      rm -rf "$tmpdir/repo" "$tmpdir"
+    fi
+  args: { executable: /bin/bash }
+  when: not seeded_flag.stat.exists and (mongo_tcp is succeeded)
+
+- name: Seed database with Node (one-time)
+  shell: |
+    docker run --rm \
+      -e MONGO_URI='{{ mongo_uri }}' \
+      -v /opt/rmit/server:/app -w /app \
+      node:18-alpine sh -lc "npm ci && npm run seed:db"
+  args: { executable: /bin/bash }
+  when: not seeded_flag.stat.exists and (mongo_tcp is succeeded)
+
+- name: Mark database as seeded
+  file: { path: /var/lib/mongo/.seeded, state: touch }
+  when: not seeded_flag.stat.exists and (mongo_tcp is succeeded)

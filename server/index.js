@@ -26,23 +26,26 @@ app.use(cors());
 app.use(metricsMiddleware);
 
 // DB + Auth + Routes
-setupDB();
+if (process.env.NODE_ENV !== 'test') {
+  setupDB();
+}
 require('./config/passport')(app);
 app.use(routes);
 // Metrics endpoint for Prometheus
 app.get('/metrics', metricsHandler);
 
-// Start the server and listen on the specified port
-const server = app.listen(port, '0.0.0.0', () => {
-  console.log(
-    `${chalk.green('✓')} ${chalk.blue(
-      `Listening on port ${port}. Visit http://localhost:${port}/ in your browser.`
-    )}`
-  );
-});
-
-// Initialize WebSocket server
-socket(server);
+// Only start the HTTP server (and websockets) outside of tests
+if (process.env.NODE_ENV !== 'test' && require.main === module) {
+  const server = app.listen(port, '0.0.0.0', () => {
+    console.log(
+      `${chalk.green('✓')} ${chalk.blue(
+        `Listening on port ${port}. Visit http://localhost:${port}/ in your browser.`
+      )}`
+    );
+  });
+  // Initialize WebSocket server
+  socket(server);
+}
 
 // Export app for testing
 module.exports = app;
