@@ -1,16 +1,22 @@
 // Test setup file for Jest
+require('dotenv').config();
+
 const { MongoMemoryServer } = require("mongodb-memory-server");
 const mongoose = require("mongoose");
-
+const passport = require("passport");
+require('../models/user');
+const jwt = require('jsonwebtoken');
 let mongoServer;
+
+require('../models/user'); 
+require('../config/passport'); 
+passport.initialize(); 
 
 // Setup before all tests
 beforeAll(async () => {
   // Create in-memory MongoDB instance
   mongoServer = await MongoMemoryServer.create();
   const mongoUri = mongoServer.getUri();
-
-  // Connect to the in-memory database
   await mongoose.connect(mongoUri, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
@@ -45,5 +51,4 @@ afterAll(async () => {
   console.log("Disconnected from test database");
 });
 
-// Global test timeout
 jest.setTimeout(30000);

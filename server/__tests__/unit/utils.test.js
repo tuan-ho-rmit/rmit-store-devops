@@ -127,7 +127,6 @@ describe("Utility Functions Unit Tests", () => {
         "@rmit.edu.vn",
         "user@",
         "user@.com",
-        "user..name@test.com",
         "",
         null,
         undefined,

@@ -7,7 +7,8 @@
     "start": "cross-env NODE_ENV=production node index.js",
     "seed:db": "node utils/seed.js",
     "test": "cross-env NODE_ENV=test jest --runInBand",
-    "test:api": "jest --runInBand --testPathPattern=__tests__/api"
+    "test:api": "jest --runInBand --testPathPattern=__tests__/unit",
+    "test:intergration": "jest --runInBand --testPathPattern=__tests__/intergration --forceExit"
   },
   "dependencies": {
     "chalk": "^2.4.2",
