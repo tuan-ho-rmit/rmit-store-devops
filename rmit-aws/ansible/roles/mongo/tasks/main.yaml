@@ -71,10 +71,24 @@
     docker run --rm \
       -e MONGO_URI='{{ mongo_uri }}' \
       -v /opt/rmit/server:/app -w /app \
-      node:18-alpine sh -lc "npm ci && npm run seed:db"
+      node:18-alpine sh -lc "npm ci && node utils/seed.js '{{ seed_admin_email | default('admin@rmit.local') }}' '{{ seed_admin_password | default('Admin123!') }}'"
+  args: { executable: /bin/bash }
+  register: seed_result
+  when: not seeded_flag.stat.exists and (mongo_tcp is succeeded)
+  changed_when: true
+  failed_when: seed_result.rc != 0
+
+- name: Verify seed inserted documents (users/products)
+  shell: |
+    set -e
+    db_name=$(echo "{{ mongo_uri }}" | sed -E 's#.*/([^/?]+).*#\1#');
+    docker run --rm --network host mongo:6-jammy mongosh --quiet --eval "const db=db.getSiblingDB('$db_name'); const u=db.users.countDocuments(); const p=db.products.countDocuments(); print('users:',u); print('products:',p); if ((u+p)==0) { quit(123) }"
   args: { executable: /bin/bash }
   when: not seeded_flag.stat.exists and (mongo_tcp is succeeded)
+  register: verify_seed
+  changed_when: false
+  failed_when: verify_seed.rc != 0
 
 - name: Mark database as seeded
   file: { path: /var/lib/mongo/.seeded, state: touch }
-  when: not seeded_flag.stat.exists and (mongo_tcp is succeeded)
+  when: not seeded_flag.stat.exists and (mongo_tcp is succeeded) and (seed_result.rc == 0) and (verify_seed.rc == 0)
