@@ -59,14 +59,14 @@ pipeline {
 
             # kubectl create ns if missing
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 get ns staging || \
+              bitnami/kubectl:1.30.6 get ns staging || \
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 create ns staging
+              bitnami/kubectl:1.30.6 create ns staging
 
             # Determine active color (green on first install so Service has endpoints)
             ACTIVE_COLOR=blue
             if ! docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-                 bitnami/kubectl:1.30 -n staging get svc backend >/dev/null 2>&1; then
+                 bitnami/kubectl:1.30.6 -n staging get svc backend >/dev/null 2>&1; then
               ACTIVE_COLOR=green
             fi
 
@@ -89,10 +89,10 @@ pipeline {
             # rollout status
             set +e
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 -n staging rollout status deploy/backend-green --timeout=300s
+              bitnami/kubectl:1.30.6 -n staging rollout status deploy/backend-green --timeout=300s
             BACK_ROLLOUT=$?
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 -n staging rollout status deploy/frontend-green --timeout=300s
+              bitnami/kubectl:1.30.6 -n staging rollout status deploy/frontend-green --timeout=300s
             FRONT_ROLLOUT=$?
             if [ $BACK_ROLLOUT -ne 0 ] || [ $FRONT_ROLLOUT -ne 0 ]; then
               echo "Staging rollout failed; rolling back…"
@@ -104,9 +104,9 @@ pipeline {
 
             # Cutover staging services to green after successful rollout
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 -n staging patch service backend  -p '{"spec":{"selector":{"app":"backend","activeColor":"green"}}}'
+              bitnami/kubectl:1.30.6 -n staging patch service backend  -p '{"spec":{"selector":{"app":"backend","activeColor":"green"}}}'
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 -n staging patch service frontend -p '{"spec":{"selector":{"app":"frontend","activeColor":"green"}}}'
+              bitnami/kubectl:1.30.6 -n staging patch service frontend -p '{"spec":{"selector":{"app":"frontend","activeColor":"green"}}}'
 
             # Diagnostics (always print for visibility)
             echo '--- staging: deploy/rs/pods';
@@ -172,14 +172,14 @@ pipeline {
 
             # kubectl create ns if missing
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 get ns prod || \
+              bitnami/kubectl:1.30.6 get ns prod || \
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 create ns prod
+              bitnami/kubectl:1.30.6 create ns prod
 
             # Determine active color (green on first install so Service has endpoints)
             ACTIVE_COLOR=blue
             if ! docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-                 bitnami/kubectl:1.30 -n prod get svc backend >/dev/null 2>&1; then
+                 bitnami/kubectl:1.30.6 -n prod get svc backend >/dev/null 2>&1; then
               ACTIVE_COLOR=green
             fi
 
@@ -202,10 +202,10 @@ pipeline {
             # rollout status
             set +e
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 -n prod rollout status deploy/backend-green --timeout=300s
+              bitnami/kubectl:1.30.6 -n prod rollout status deploy/backend-green --timeout=300s
             BACK_ROLLOUT=$?
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 -n prod rollout status deploy/frontend-green --timeout=300s
+              bitnami/kubectl:1.30.6 -n prod rollout status deploy/frontend-green --timeout=300s
             FRONT_ROLLOUT=$?
             if [ $BACK_ROLLOUT -ne 0 ] || [ $FRONT_ROLLOUT -ne 0 ]; then
               echo "Prod rollout failed; rolling back…"
@@ -242,9 +242,9 @@ pipeline {
             set -e
             cp "$KUBECONF" kubeconfig && chmod 600 kubeconfig
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 -n prod patch service backend  -p '{"spec":{"selector":{"app":"backend","activeColor":"green"}}}'
+              bitnami/kubectl:1.30.6 -n prod patch service backend  -p '{"spec":{"selector":{"app":"backend","activeColor":"green"}}}'
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 -n prod patch service frontend -p '{"spec":{"selector":{"app":"frontend","activeColor":"green"}}}'
+              bitnami/kubectl:1.30.6 -n prod patch service frontend -p '{"spec":{"selector":{"app":"frontend","activeColor":"green"}}}'
             shred -u kubeconfig || rm -f kubeconfig
           '''
         }
