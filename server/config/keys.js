@@ -1,7 +1,7 @@
 module.exports = {
   app: {
     name: 'RMIT Ecommerce', // Application name
-    apiURL: `${process.env.BASE_API_URL}`, // Base API URL
+    apiURL: process.env.BASE_API_URL || 'api', // Base API URL
     clientURL: process.env.CLIENT_URL // Client URL
   },
   port: process.env.PORT || 3000, // Server port

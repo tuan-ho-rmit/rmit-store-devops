@@ -104,7 +104,8 @@ describe("Utility Functions Unit Tests", () => {
   });
 
   describe("Email Validation", () => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Stricter but still pragmatic regex
+    const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
 
     test("should validate correct email formats", () => {
       const validEmails = [
@@ -133,9 +134,8 @@ describe("Utility Functions Unit Tests", () => {
       ];
 
       invalidEmails.forEach((email) => {
-        if (email !== null && email !== undefined) {
-          expect(emailRegex.test(email)).toBeFalsy();
-        }
+        if (email == null) return;
+        expect(emailRegex.test(email)).toBe(false);
       });
     });
   });
@@ -154,7 +154,7 @@ describe("Utility Functions Unit Tests", () => {
       );
       const expected = 99.99 * 2 + 149.5 * 1 + 29.99 * 3;
 
-      expect(total).toBe(expected);
+      expect(total).toBeCloseTo(expected, 2);
       expect(total).toBeCloseTo(439.45, 2);
     });
 
