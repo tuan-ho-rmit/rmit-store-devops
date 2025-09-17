@@ -81,7 +81,7 @@ inventory:
 	if [ -n "$$SMTP_SMARTHOST" ];  then printf "smtp_smarthost: \"%s\"\n" "$$SMTP_SMARTHOST"   >> ansible/group_vars/all.yaml; fi; \
 	if [ -n "$$SMTP_FROM" ];       then printf "smtp_from: \"%s\"\n"      "$$SMTP_FROM"       >> ansible/group_vars/all.yaml; fi; \
 	if [ -n "$$SMTP_USERNAME" ];   then printf "smtp_username: \"%s\"\n"  "$$SMTP_USERNAME"   >> ansible/group_vars/all.yaml; fi; \
-	if [ -n "$$SMTP_PASSWORD" ];   then printf "smtp_password: \"%s\"\n"  "$$SMTP_PASSWORD"   >> ansible/group_vars/all.yaml; fi; \
+	if [ -n "$$SMTP_PASSWORD" ];   then spw=$$(echo "$$SMTP_PASSWORD" | tr -d '[:space:]'); printf "smtp_password: \"%s\"\n"  "$$spw"   >> ansible/group_vars/all.yaml; fi; \
 	if [ -n "$$EMAIL_TO" ];        then printf "email_to: \"%s\"\n"       "$$EMAIL_TO"        >> ansible/group_vars/all.yaml; fi; \
 	echo "Created ansible/inventory.ini and group_vars/all.yaml"
 

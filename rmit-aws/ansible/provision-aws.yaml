@@ -184,6 +184,9 @@
       set_fact:
         jenkins_id: "{{ ec2.results[0].instances[0].instance_id }}"
         master_id:  "{{ ec2.results[1].instances[0].instance_id }}"
+        client_id:  "{{ ec2.results[2].instances[0].instance_id }}"
+        server_id:  "{{ ec2.results[3].instances[0].instance_id }}"
+        mongo_id:   "{{ ec2.results[4].instances[0].instance_id }}"
 
     - name: Allocate and associate Elastic IP for Jenkins
       amazon.aws.ec2_eip:
@@ -205,10 +208,43 @@
       register: eip_master
       when: skip_eip != '1'
 
+    - name: Allocate and associate Elastic IP for k3s-client
+      amazon.aws.ec2_eip:
+        state: present
+        region: "{{ aws_region }}"
+        in_vpc: true
+        device_id: "{{ client_id }}"
+        reuse_existing_ip_allowed: true
+      register: eip_client
+      when: skip_eip != '1'
+
+    - name: Allocate and associate Elastic IP for k3s-server
+      amazon.aws.ec2_eip:
+        state: present
+        region: "{{ aws_region }}"
+        in_vpc: true
+        device_id: "{{ server_id }}"
+        reuse_existing_ip_allowed: true
+      register: eip_server
+      when: skip_eip != '1'
+
+    - name: Allocate and associate Elastic IP for mongo
+      amazon.aws.ec2_eip:
+        state: present
+        region: "{{ aws_region }}"
+        in_vpc: true
+        device_id: "{{ mongo_id }}"
+        reuse_existing_ip_allowed: true
+      register: eip_mongo
+      when: skip_eip != '1'
+
     - name: Determine public IPs to write (prefer EIP)
       set_fact:
         jenkins_pub_ip: "{{ (eip_jenkins | default({})).public_ip | default(ec2.results[0].instances[0].public_ip_address) }}"
         master_pub_ip:  "{{ (eip_master  | default({})).public_ip | default(ec2.results[1].instances[0].public_ip_address) }}"
+        client_pub_ip:  "{{ (eip_client  | default({})).public_ip | default(ec2.results[2].instances[0].public_ip_address) }}"
+        server_pub_ip:  "{{ (eip_server  | default({})).public_ip | default(ec2.results[3].instances[0].public_ip_address) }}"
+        mongo_pub_ip:   "{{ (eip_mongo   | default({})).public_ip | default(ec2.results[4].instances[0].public_ip_address) }}"
 
     - name: Build outputs env file
       copy:
@@ -216,9 +252,9 @@
         content: |
           JenkinsIP={{ jenkins_pub_ip }}
           MasterIP={{  master_pub_ip  }}
-          ClientIP={{  (ec2.results[2].instances[0].public_ip_address) }}
-          ServerIP={{  (ec2.results[3].instances[0].public_ip_address) }}
-          MongoIPPub={{ (ec2.results[4].instances[0].public_ip_address) }}
+          ClientIP={{  client_pub_ip }}
+          ServerIP={{  server_pub_ip }}
+          MongoIPPub={{ mongo_pub_ip }}
           JenkinsPriv={{ (ec2.results[0].instances[0].private_ip_address) }}
           MasterPriv={{  (ec2.results[1].instances[0].private_ip_address) }}
           ClientPriv={{  (ec2.results[2].instances[0].private_ip_address) }}

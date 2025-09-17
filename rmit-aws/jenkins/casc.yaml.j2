@@ -35,6 +35,7 @@ unclassified:
     url: "{{ jenkins_url_hint }}"
   mailer:
     smtpHost: "{{ smtp_smarthost | default('') | regex_replace(':.*$','') }}"
+    smtpPort: "{{ (smtp_smarthost | default('smtp.gmail.com:587')) | regex_search(':(\\d+)$') | default(['', '587']) | last }}"
     useTls: true
     authentication:
       username: "{{ smtp_username | default('') }}"
