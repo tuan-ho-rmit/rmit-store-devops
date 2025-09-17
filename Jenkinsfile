@@ -20,7 +20,7 @@ pipeline {
           sh '''
             docker run --rm \
               -v $PWD:/app -w /app \
-              node:18-alpine sh -lc "if [ -f package-lock.json ]; then npm ci; else npm install; fi && npm test"
+              node:20-bullseye bash -lc "if [ -f package-lock.json ]; then npm ci; else npm install; fi && npm test -- --coverage --ci"
           '''
         }
         // Archive coverage if present
