@@ -132,6 +132,52 @@
   delay: 10
   until: plugin_cli.rc == 0
 
+- name: Ensure RMIT-Store job dir exists on disk
+  file:
+    path: /var/jenkins_home/jobs/RMIT-Store
+    state: directory
+    owner: 1000
+    group: 1000
+    mode: '0775'
+
+- name: Write RMIT-Store job config.xml on disk (deterministic creation)
+  copy:
+    dest: /var/jenkins_home/jobs/RMIT-Store/config.xml
+    owner: 1000
+    group: 1000
+    mode: '0644'
+    content: |
+      <flow-definition plugin="workflow-job">
+        <description>CI/CD pipeline for RMIT Store (on-disk)</description>
+        <keepDependencies>false</keepDependencies>
+        <triggers>
+          <com.cloudbees.jenkins.GitHubPushTrigger plugin="github"/>
+        </triggers>
+        <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps">
+          <scm class="hudson.plugins.git.GitSCM" plugin="git">
+            <userRemoteConfigs>
+              <hudson.plugins.git.UserRemoteConfig>
+                <url>{{ github_repo }}</url>
+                <credentialsId>github-token</credentialsId>
+              </hudson.plugins.git.UserRemoteConfig>
+            </userRemoteConfigs>
+            <branches>
+              <hudson.plugins.git.BranchSpec>
+                <name>*/main</name>
+              </hudson.plugins.git.BranchSpec>
+            </branches>
+          </scm>
+          <scriptPath>Jenkinsfile</scriptPath>
+          <lightweight>true</lightweight>
+        </definition>
+        <disabled>false</disabled>
+      </flow-definition>
+
+- name: Stat RMIT-Store job config
+  stat:
+    path: /var/jenkins_home/jobs/RMIT-Store/config.xml
+  register: job_cfg
+
 - name: Restart Jenkins to load plugins + JCasC
   docker_container:
     name: jenkins
@@ -183,23 +229,85 @@
   register: job_exists
   changed_when: false
 
+- name: Download Jenkins CLI inside container (if job missing)
+  shell: |
+    set -e
+    docker exec jenkins bash -lc "curl -fsSL -o /opt/cli.jar http://localhost:8080/jnlpJars/cli.jar && ls -l /opt/cli.jar"
+  register: cli_dl
+  changed_when: true
+  when: job_exists.stdout != '200' and (job_cfg is not defined or not job_cfg.stat.exists)
+
+- name: Create RMIT-Store job via CLI (inside container)
+  shell: |
+    set -e
+    ADMIN="{{ jenkins_admin_user }}"; PASS="{{ jenkins_admin_password }}";
+    docker exec -i jenkins bash -lc "java -jar /opt/cli.jar -s http://localhost:8080 -auth \"$ADMIN:$PASS\" create-job RMIT-Store < /config/job-rmit-store.xml"
+  register: cli_create
+  changed_when: true
+  when: job_exists.stdout != '200' and (job_cfg is not defined or not job_cfg.stat.exists)
+  args:
+    executable: /bin/bash
+  ignore_errors: true
+
 - name: Create RMIT-Store job via REST
   shell: |
+    set -e
     ADMIN="{{ jenkins_admin_user }}"; PASS="{{ jenkins_admin_password }}";
-    CRUMB=$(curl -s -u "$ADMIN:$PASS" http://localhost:8080/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb));
-    curl -s -u "$ADMIN:$PASS" -H "$CRUMB" -H 'Content-Type: application/xml' \
+    CJ=$(mktemp /tmp/jenkins_cj.XXXXXX)
+    # Fetch crumb and session cookie
+    JSON=$(curl -s -u "$ADMIN:$PASS" -c "$CJ" "http://localhost:8080/crumbIssuer/api/json")
+    CRUMB_FIELD=$(echo "$JSON" | sed -n 's/.*"crumbRequestField":"\([^"]*\)".*/\1/p')
+    CRUMB_VALUE=$(echo "$JSON" | sed -n 's/.*"crumb":"\([^"]*\)".*/\1/p')
+    CODE=$(curl -s -o /tmp/job_create.out -w '%{http_code}' \
+      -u "$ADMIN:$PASS" -b "$CJ" -H "$CRUMB_FIELD: $CRUMB_VALUE" -H 'Content-Type: application/xml' \
       -X POST --data-binary @/opt/jenkins/job-rmit-store.xml \
-      'http://localhost:8080/createItem?name=RMIT-Store' || true
-  when: job_exists.stdout != '200'
+      'http://localhost:8080/createItem?name=RMIT-Store' || true)
+    echo "createItem HTTP_CODE=$CODE"
+    if [ "$CODE" != "200" ] && [ "$CODE" != "302" ]; then
+      echo '--- response (head) ---'; head -n 80 /tmp/job_create.out || true
+      exit 17
+    fi
+    rm -f "$CJ"
+  when: job_exists.stdout != '200' and (job_cfg is not defined or not job_cfg.stat.exists)
   changed_when: true
+  args:
+    executable: /bin/bash
+
+- name: Wait until RMIT-Store job is visible (verify)
+  shell: |
+    ADMIN="{{ jenkins_admin_user }}"; PASS="{{ jenkins_admin_password }}";
+    curl -s -u "$ADMIN:$PASS" -o /dev/null -w '%{http_code}' http://localhost:8080/job/RMIT-Store/api/json
+  register: job_ready
+  retries: 10
+  delay: 3
+  until: job_ready.stdout == '200'
+  changed_when: false
+
+- name: List Jenkins jobs for diagnostics
+  shell: |
+    ADMIN="{{ jenkins_admin_user }}"; PASS="{{ jenkins_admin_password }}";
+    curl -s -u "$ADMIN:$PASS" 'http://localhost:8080/api/json?tree=jobs[name]'
+  register: jobs_list
+  changed_when: false
+  failed_when: false
+  ignore_errors: true
+
+- name: Show jobs list
+  debug:
+    var: jobs_list.stdout
+  when: jobs_list is defined
 
 - name: Compute GitHub webhook URL
   set_fact:
     gh_webhook_url: "{{ jenkins_url_hint | regex_replace('/?$', '/') }}github-webhook/"
 
+- name: Compute sanitized repo name for GitHub API
+  set_fact:
+    gh_repo_name: "{{ (github_repo | regex_replace('.*/','') | regex_replace('\\.git$','')) }}"
+
 - name: List existing GitHub webhooks
   uri:
-    url: "https://api.github.com/repos/{{ github_owner }}/{{ (github_repo | regex_replace('.*/','')) }}/hooks"
+    url: "https://api.github.com/repos/{{ github_owner }}/{{ gh_repo_name }}/hooks"
     method: GET
     headers:
       Authorization: "token {{ github_token }}"
@@ -214,7 +322,7 @@
 
 - name: Ensure GitHub webhook exists (create if missing)
   uri:
-    url: "https://api.github.com/repos/{{ github_owner }}/{{ (github_repo | regex_replace('.*/','')) }}/hooks"
+    url: "https://api.github.com/repos/{{ github_owner }}/{{ gh_repo_name }}/hooks"
     method: POST
     headers:
       Authorization: "token {{ github_token }}"
@@ -237,7 +345,7 @@
 
 - name: Ping webhook
   uri:
-    url: "https://api.github.com/repos/{{ github_owner }}/{{ (github_repo | regex_replace('.*/','')) }}/hooks/{{ gh_hook_id }}/pings"
+    url: "https://api.github.com/repos/{{ github_owner }}/{{ gh_repo_name }}/hooks/{{ gh_hook_id }}/pings"
     method: POST
     headers:
       Authorization: "token {{ github_token }}"

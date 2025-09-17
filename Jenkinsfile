@@ -6,6 +6,8 @@ pipeline {
     BACK_IMG  = "docker.io/${DH_NS}/rmit-store-backend"
     STAGING_HOST = "${env.STAGING_HOST ?: ''}"
     PROD_HOST    = "${env.PROD_HOST ?: ''}"
+    // Speed up Docker builds if available
+    DOCKER_BUILDKIT = '1'
   }
   triggers { githubPush() }
 
@@ -18,18 +20,20 @@ pipeline {
           sh '''
             docker run --rm \
               -v $PWD:/app -w /app \
-              node:18-alpine sh -lc "npm ci && npm test"
+              node:18-alpine sh -lc "if [ -f package-lock.json ]; then npm ci; else npm install; fi && npm test"
           '''
         }
+        // Archive coverage if present
+        script { if (fileExists('server/coverage')) { archiveArtifacts artifacts: 'server/coverage/**', allowEmptyArchive: true } }
       }
     }
 
     stage('Build images'){
       steps {
         sh """
-          docker build -t ${BACK_IMG}:${GIT_COMMIT}  ./server
+          docker build --pull --no-cache -t ${BACK_IMG}:${GIT_COMMIT}  ./server
           # Build frontend with API_URL pointing to same-origin /api
-          docker build --build-arg API_URL=/api -t ${FRONT_IMG}:${GIT_COMMIT} ./client
+          docker build --pull --no-cache --build-arg API_URL=/api -t ${FRONT_IMG}:${GIT_COMMIT} ./client
         """
       }
     }
@@ -135,6 +139,30 @@ pipeline {
       }
     }
 
+    stage('E2E STAGING (Playwright)'){
+      steps {
+        withCredentials([
+          string(credentialsId: 'admin-email', variable: 'P_ADMIN_EMAIL'),
+          string(credentialsId: 'admin-pass',  variable: 'P_ADMIN_PASS')
+        ]){
+          sh '''
+            set -e
+            # Run Playwright tests against staging in a container
+            docker run --rm \
+              -e BASE_URL="http://$STAGING_HOST" \
+              -e ADMIN_EMAIL="${P_ADMIN_EMAIL:-admin@rmit.edu.vn}" \
+              -e ADMIN_PASS="${P_ADMIN_PASS:-ChangeMe123!}" \
+              -e READ_ONLY_GUARD=0 \
+              -v "$PWD"/tests/e2e-playwright:/e2e -w /e2e \
+              mcr.microsoft.com/playwright:v1.48.2-jammy bash -lc "\
+                if [ -f package-lock.json ]; then npm ci; else npm install; fi && \
+                npx playwright install --with-deps && \
+                npx playwright test --reporter=dot"
+          '''
+        }
+      }
+    }
+
     stage('Deploy GREEN (prod)'){
       steps {
         withCredentials([file(credentialsId: 'kubeconfig-master', variable: 'KUBECONF')]){
@@ -230,6 +258,25 @@ pipeline {
       mail to: "${env.EMAIL_TO ?: ''}",
            subject: "Deployment Succeeded: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
            body: "Build URL: ${env.BUILD_URL}\nCommit: ${env.GIT_COMMIT}\nStaging: http://${env.STAGING_HOST}\nProd: http://${env.PROD_HOST}"
+      script {
+        def stF = (env.STAGING_HOST?.trim()) ? "http://${env.STAGING_HOST}/" : null
+        def stB = (env.STAGING_HOST?.trim()) ? "http://${env.STAGING_HOST}/api/health" : null
+        def prF = (env.PROD_HOST?.trim())    ? "http://${env.PROD_HOST}/" : null
+        def prB = (env.PROD_HOST?.trim())    ? "http://${env.PROD_HOST}/api/health" : null
+        def links = []
+        if (stF) links << "<li><a href='${stF}'>Staging Frontend</a></li>"
+        if (stB) links << "<li><a href='${stB}'>Staging Backend (health)</a></li>"
+        if (prF) links << "<li><a href='${prF}'>Prod Frontend</a></li>"
+        if (prB) links << "<li><a href='${prB}'>Prod Backend (health)</a></li>"
+        def html = """
+          <h3>Deployed Links</h3>
+          <ul>
+            ${links.join(' ')}
+          </ul>
+        """
+        currentBuild.description = 'Links: staging/prod'
+        try { createSummary(icon: 'link-48x48.png', text: html) } catch (e) { echo "createSummary not available: ${e}" }
+      }
     }
     failure {
       echo "Deployment failed at stage: ${env.STAGE_NAME}"

@@ -2,6 +2,9 @@ jenkins:
   systemMessage: "RMIT Jenkins (auto-configured via JCasC)"
   numExecutors: 2
   mode: NORMAL
+  crumbIssuer:
+    standard:
+      excludeClientIPFromCrumb: true
 
   securityRealm:
     local:
