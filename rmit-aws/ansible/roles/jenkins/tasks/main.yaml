@@ -16,6 +16,63 @@
     state: stopped
   ignore_errors: true
 
+# --- Auto-expand root partition and filesystem (idempotent) ---
+- name: Install growpart and FS tools
+  package:
+    name:
+      - cloud-utils-growpart
+      - xfsprogs
+      - e2fsprogs
+    state: present
+  become: true
+
+- name: Detect root device and filesystem
+  shell: |
+    set -e
+    ROOT=$(findmnt -n -o SOURCE /)
+    FSTYPE=$(findmnt -n -o FSTYPE /)
+    if echo "$ROOT" | grep -q nvme; then
+      DISK="/dev/$(basename "$ROOT" | sed -E 's/p[0-9]+$//')"
+      PARTNUM=$(basename "$ROOT" | sed -E 's/^.*p([0-9]+)$/\1/')
+      PARTPATH="${DISK}p${PARTNUM}"
+    else
+      DISK="/dev/$(basename "$ROOT" | sed -E 's/[0-9]+$//')"
+      PARTNUM=$(basename "$ROOT" | sed -E 's/^.*([0-9]+)$/\1/')
+      PARTPATH="${DISK}${PARTNUM}"
+    fi
+    echo DISK=$DISK
+    echo PARTNUM=$PARTNUM
+    echo PARTPATH=$PARTPATH
+    echo FSTYPE=$FSTYPE
+  args: { executable: /bin/bash }
+  register: root_detect
+  changed_when: false
+
+- name: Set facts from detection
+  set_fact:
+    root_disk: "{{ root_detect.stdout_lines | select('match','^DISK=') | list | first | regex_replace('^DISK=','') }}"
+    root_partnum: "{{ root_detect.stdout_lines | select('match','^PARTNUM=') | list | first | regex_replace('^PARTNUM=','') }}"
+    root_partpath: "{{ root_detect.stdout_lines | select('match','^PARTPATH=') | list | first | regex_replace('^PARTPATH=','') }}"
+    root_fstype: "{{ root_detect.stdout_lines | select('match','^FSTYPE=') | list | first | regex_replace('^FSTYPE=','') }}"
+
+- name: Grow partition (no-op if already max)
+  shell: "growpart {{ root_disk }} {{ root_partnum }}"
+  become: true
+  register: growpart_res
+  failed_when: growpart_res.rc not in [0,1]
+  changed_when: growpart_res.rc == 0
+
+- name: Grow filesystem (XFS)
+  shell: xfs_growfs -d /
+  when: root_fstype == 'xfs'
+  become: true
+
+- name: Grow filesystem (ext4)
+  shell: "resize2fs {{ root_partpath }}"
+  when: root_fstype == 'ext4'
+  become: true
+# --- end auto-expand ---
+
 - name: Write plugins.txt
   copy:
     dest: /opt/jenkins/plugins.txt

@@ -1,5 +1,9 @@
 pipeline {
   agent any
+  options {
+    buildDiscarder(logRotator(daysToKeepStr: '14', numToKeepStr: '30', artifactDaysToKeepStr: '7', artifactNumToKeepStr: '10'))
+    timestamps()
+  }
   environment {
     DH_NS     = "${env.DH_NS ?: '<your-dockerhub-username-or-org>'}"
     FRONT_IMG = "docker.io/${DH_NS}/rmit-store-frontend"

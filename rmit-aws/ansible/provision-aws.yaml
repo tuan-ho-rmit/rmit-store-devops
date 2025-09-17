@@ -14,6 +14,9 @@
     ami_param:    "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64"
     skip_eip:     "{{ lookup('env','SKIP_EIP') | default('0', true) }}"
     ssh_cidr_env: "{{ lookup('env','SSH_CIDR') | default('', true) }}"
+    # Root volume sizes (GiB)
+    jenkins_root_gb: "{{ lookup('env','JENKINS_ROOT_GB') | default('60', true) }}"
+    default_root_gb: "{{ lookup('env','DEFAULT_ROOT_GB') | default('16', true) }}"
 
   collections:
     - amazon.aws
@@ -172,6 +175,12 @@
         vpc_subnet_id: "{{ item.subnet }}"
         security_group: "{{ item.sg }}"
         wait: true
+        volumes:
+          - device_name: /dev/xvda
+            ebs:
+              volume_type: gp3
+              volume_size: "{{ (item.name == 'jenkins') | ternary(jenkins_root_gb | int, default_root_gb | int) }}"
+              delete_on_termination: true
       loop:
         - { name: jenkins,      type: '{{ type_jenkins }}', subnet: '{{ (subnets.results[0].subnet.id) }}', sg: 'rmit-jenkins-sg' }
         - { name: k3s-master,   type: '{{ type_master  }}', subnet: '{{ (subnets.results[0].subnet.id) }}', sg: 'rmit-master-sg' }
