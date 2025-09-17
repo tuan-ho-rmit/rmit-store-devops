@@ -56,8 +56,8 @@ helm/rmit-store/
 Blue/Green wiring
 ```mermaid
 graph LR
-  SVC[(Service selector activeColor)] -- blue --> DEPB[backend-blue]
-  SVC -- green --> DEPG[backend-green]
+  SVC[(Service selector activeColor)] -->|blue| DEPB[[backend-blue]]
+  SVC -->|green| DEPG[[backend-green]]
 ```
 Jenkins sets:
 - `--set backend.greenImage, frontend.greenImage`
@@ -76,8 +76,8 @@ Monitoring toggles
 ### CI/CD ↔ Chart mapping
 ```mermaid
 flowchart LR
-  JK[Jenkinsfile] -- helm --set --> V[values]
-  V -- templates --> K8S[(Deployments/Services/Ingress)]
+  JK[Jenkinsfile] -->|helm --set| V[values]
+  V -->|templates| K8S[(Deployments/Services/Ingress)]
 ```
 Key mappings:
 - `STAGING_HOST/PROD_HOST` → `.Values.host` (frontend/backend ingresses)

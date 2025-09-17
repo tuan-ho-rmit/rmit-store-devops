@@ -4,8 +4,8 @@
 ```mermaid
 graph TD
   JX[Jenkins EC2]-->K3S[k3s master]
-  K3S-->W1[Worker (frontend)]
-  K3S-->W2[Worker (backend)]
+  K3S-->W1[Worker frontend]
+  K3S-->W2[Worker backend]
   subgraph Cluster
     TR[Traefik Ingress]
     FE[Frontend pods]

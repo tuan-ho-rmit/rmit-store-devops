@@ -40,6 +40,7 @@ graph LR
     JX[Jenkins EC2]
     M[Mongo EC2]
     subgraph k3s Cluster
+      API[k3s API]
       TR[Traefik Ingress]
       FE[Frontend Deployment]
       BE[Backend Deployment]
@@ -48,9 +49,9 @@ graph LR
     end
   end
 
-  Dev((Developers)) -- Push code --> GH[(GitHub)]
-  GH -- Webhook --> JX
-  JX -- Helm/Kubeconfig --> k3s Cluster
+  Dev((Developers)) --> GH[(GitHub)]
+  GH --> JX
+  JX -- Kubeconfig --> API
   FE --> M
   BE --> M
   PM --> JX
@@ -78,9 +79,9 @@ graph LR
 ```mermaid
 flowchart LR
   subgraph Namespace
-  SVC[(Service selector activeColor=X)]
-  BLUE[Deployment backend-blue]\nlabels: app=backend,activeColor=blue
-  GREEN[Deployment backend-green]\nlabels: app=backend,activeColor=green
+    SVC[(Service selector activeColor=X)]
+    BLUE[[backend-blue]]
+    GREEN[[backend-green]]
   end
   SVC -->|activeColor=green| GREEN
   SVC -.-> BLUE
