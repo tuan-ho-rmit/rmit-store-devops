@@ -1,6 +1,6 @@
 import { test, expect, Page, Locator } from '@playwright/test';
 
-test.use({ video: 'on', trace: 'retain-on-failure' });
+// test.use({ video: 'on', trace: 'retain-on-failure' });
 
 const USE_HASH = process.env.USE_HASH === '1';
 const BASE_PATH = process.env.BASE_PATH || '';

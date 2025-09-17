@@ -1,5 +1,5 @@
 import { test, expect, request, APIRequestContext, Locator } from '@playwright/test';
-test.use({ video: 'on', trace: 'retain-on-failure' });
+// test.use({ video: 'on', trace: 'retain-on-failure' });
 
 const API_URL = process.env.API_URL || 'http://localhost:3000/api'; 
 const USE_HASH = process.env.USE_HASH === '1'; 
@@ -127,10 +127,10 @@ test.describe('LIVE • Full order flow (FE + BE + DB)', () => {
         });
      }); 
             
-     test.afterEach(async ({}, testInfo) => { 
-        const vid = testInfo.attachments?.find(a => a.name === 'video' && a.path); 
-        if (vid?.path) console.log('[VIDEO]', vid.path); 
-        const trace = testInfo.attachments?.find(a => a.name === 'trace' && a.path); 
-        if (trace?.path) console.log('[TRACE]', trace.path); 
-    }); 
+    //  test.afterEach(async ({}, testInfo) => { 
+    //     const vid = testInfo.attachments?.find(a => a.name === 'video' && a.path); 
+    //     if (vid?.path) console.log('[VIDEO]', vid.path); 
+    //     const trace = testInfo.attachments?.find(a => a.name === 'trace' && a.path); 
+    //     if (trace?.path) console.log('[TRACE]', trace.path); 
+    // }); 
 });

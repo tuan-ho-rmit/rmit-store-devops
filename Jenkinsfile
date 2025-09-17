@@ -28,12 +28,25 @@ pipeline {
       }
     }
 
+    stage('Docker GC'){
+      steps{
+        sh '''
+          echo "[docker-gc] Before:" && docker system df || true
+          docker container prune -f || true
+          docker image prune -af || true
+          docker volume prune -f || true
+          docker builder prune -af || true
+          echo "[docker-gc] After:" && docker system df || true
+        '''
+      }
+    }
+
     stage('Build images'){
       steps {
         sh """
-          docker build --pull --no-cache -t ${BACK_IMG}:${GIT_COMMIT}  ./server
+          docker build --pull -t ${BACK_IMG}:${GIT_COMMIT}  ./server
           # Build frontend with API_URL pointing to same-origin /api
-          docker build --pull --no-cache --build-arg API_URL=/api -t ${FRONT_IMG}:${GIT_COMMIT} ./client
+          docker build --pull --build-arg API_URL=/api -t ${FRONT_IMG}:${GIT_COMMIT} ./client
         """
       }
     }
