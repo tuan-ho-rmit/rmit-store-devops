@@ -227,20 +227,16 @@ pipeline {
   post {
     success {
       echo "Deployment succeeded: ${GIT_COMMIT}"
-      withCredentials([string(credentialsId: 'email-to', variable: 'EMAIL_TO_LIST')]) {
-        mail to: "${EMAIL_TO_LIST ?: env.EMAIL_TO ?: ''}",
-             subject: "Deployment Succeeded: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-             body: "Build URL: ${env.BUILD_URL}\nCommit: ${env.GIT_COMMIT}\nStaging: http://${env.STAGING_HOST}\nProd: http://${env.PROD_HOST}"
-      }
+      mail to: "${env.EMAIL_TO ?: ''}",
+           subject: "Deployment Succeeded: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+           body: "Build URL: ${env.BUILD_URL}\nCommit: ${env.GIT_COMMIT}\nStaging: http://${env.STAGING_HOST}\nProd: http://${env.PROD_HOST}"
     }
     failure {
       echo "Deployment failed at stage: ${env.STAGE_NAME}"
       // Send email via Jenkins core mailer (requires SMTP configured in Manage Jenkins)
-      withCredentials([string(credentialsId: 'email-to', variable: 'EMAIL_TO_LIST')]) {
-        mail to: "${EMAIL_TO_LIST ?: env.EMAIL_TO ?: ''}",
-             subject: "Deployment Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-             body: "Build URL: ${env.BUILD_URL}\nStage: ${env.STAGE_NAME}"
-      }
+      mail to: "${env.EMAIL_TO ?: ''}",
+           subject: "Deployment Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+           body: "Build URL: ${env.BUILD_URL}\nStage: ${env.STAGE_NAME}"
     }
   }
 }
