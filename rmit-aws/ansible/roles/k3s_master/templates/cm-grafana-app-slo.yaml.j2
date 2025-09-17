@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dash-app-slo
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  app-slo.json: |
+{{ lookup('file', role_path + '/files/dashboards/app-slo.json') | indent(4, true) }}
+
+

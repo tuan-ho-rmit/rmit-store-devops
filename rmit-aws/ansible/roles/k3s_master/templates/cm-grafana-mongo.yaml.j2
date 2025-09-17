@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dash-mongo
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  mongo.json: |
+{{ lookup('file', role_path + '/files/dashboards/mongo.json') | indent(4, true) }}
+
+

@@ -1,0 +1,48 @@
+{
+  "title": "RMIT Store - MongoDB",
+  "schemaVersion": 36,
+  "editable": true,
+  "tags": ["rmit", "mongo"],
+  "time": {"from": "now-6h", "to": "now"},
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Ops/sec",
+      "datasource": "Prometheus",
+      "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "sum(rate(mongodb_op_counters_total[5m]))", "refId": "A"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Connections",
+      "datasource": "Prometheus",
+      "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "sum(mongodb_connections{state=\"current\"})", "refId": "A"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Cache dirty/used %",
+      "datasource": "Prometheus",
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "avg(100 * mongodb_mmapv1_engine_cache_dirty_percent)", "legendFormat": "dirty%", "refId": "A"},
+        {"expr": "avg(100 * mongodb_mmapv1_engine_cache_used_percent)", "legendFormat": "used%", "refId": "B"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Disk usage (bytes)",
+      "datasource": "Prometheus",
+      "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "sum(mongodb_mmapv1_engine_db_file_size_bytes)", "refId": "A"}
+      ]
+    }
+  ]
+}
+
+

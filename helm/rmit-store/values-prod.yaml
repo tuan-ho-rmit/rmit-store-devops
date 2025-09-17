@@ -24,6 +24,6 @@ frontend:
   port: 80
 
 monitoring:
-  enabled: false
+  enabled: true
 
 

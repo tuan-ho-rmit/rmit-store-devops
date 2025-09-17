@@ -1,0 +1,65 @@
+{
+  "title": "RMIT Store - Blue/Green",
+  "schemaVersion": 36,
+  "editable": true,
+  "tags": ["rmit", "bluegreen"],
+  "time": {"from": "now-6h", "to": "now"},
+  "templating": {
+    "list": [
+      {"type": "query", "name": "namespace", "label": "Namespace", "datasource": "Prometheus", "query": "label_values(kube_pod_info, namespace)", "current": {"text": "prod", "value": "prod"}, "refresh": 1}
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Active color (backend service selector)",
+      "datasource": "Prometheus",
+      "gridPos": {"x": 0, "y": 0, "w": 8, "h": 6},
+      "targets": [
+        {"expr": "max(kube_service_info{namespace=~\"$namespace\", service=\"backend\"})", "refId": "A"}
+      ],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "type": "bargauge",
+      "title": "Pods by color",
+      "datasource": "Prometheus",
+      "gridPos": {"x": 8, "y": 0, "w": 16, "h": 6},
+      "targets": [
+        {"expr": "sum by (label_activeColor) (kube_pod_labels{namespace=~\"$namespace\", label_app=\"backend\"})", "refId": "A"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "5xx by color",
+      "datasource": "Prometheus",
+      "gridPos": {"x": 0, "y": 6, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "sum(rate(traefik_service_requests_total{namespace=~\"$namespace\", service=~\"backend.*\", code=~\"5..\", activeColor=\"blue\"}[5m]))", "legendFormat": "blue", "refId": "A"},
+        {"expr": "sum(rate(traefik_service_requests_total{namespace=~\"$namespace\", service=~\"backend.*\", code=~\"5..\", activeColor=\"green\"}[5m]))", "legendFormat": "green", "refId": "B"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency p95 by color (s)",
+      "datasource": "Prometheus",
+      "gridPos": {"x": 12, "y": 6, "w": 12, "h": 8},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum(rate(traefik_service_request_duration_seconds_bucket{namespace=~\"$namespace\", service=~\"backend.*\", activeColor=\"blue\"}[5m])) by (le))", "legendFormat": "blue", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, sum(rate(traefik_service_request_duration_seconds_bucket{namespace=~\"$namespace\", service=~\"backend.*\", activeColor=\"green\"}[5m])) by (le))", "legendFormat": "green", "refId": "B"}
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Service endpoints ready",
+      "datasource": "Prometheus",
+      "gridPos": {"x": 0, "y": 14, "w": 8, "h": 6},
+      "targets": [
+        {"expr": "sum(kube_endpoint_address_available{namespace=~\"$namespace\", endpoint=~\"backend.*\"})", "refId": "A"}
+      ],
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    }
+  ]
+}
+
+

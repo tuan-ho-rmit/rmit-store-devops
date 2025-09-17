@@ -1,0 +1,45 @@
+grafana:
+  adminPassword: "{{ grafana_admin_password | default('admin123') }}"
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      # Primary: dashed IP form (e.g., grafana.54-224-163-185.nip.io)
+      - "grafana.{{ (base_url | regex_replace('^https?://','') | regex_replace('/.*$','') | replace('.','-')) }}.nip.io"
+      # Also accept dotted IP form for convenience (e.g., grafana.54.224.163.185.nip.io)
+      - "grafana.{{ (base_url | regex_replace('^https?://','') | regex_replace('/.*$','') ) }}.nip.io"
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt
+    tls:
+      - hosts:
+          - "grafana.{{ (base_url | regex_replace('^https?://','') | regex_replace('/.*$','') | replace('.','-')) }}.nip.io"
+          - "grafana.{{ (base_url | regex_replace('^https?://','') | regex_replace('/.*$','') ) }}.nip.io"
+        secretName: grafana-tls
+
+  # Make sure Grafana auto-imports dashboards from ConfigMaps labeled grafana_dashboard=1
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL
+
+alertmanager:
+  config:
+    global:
+      resolve_timeout: 5m
+      smtp_smarthost: "{{ smtp_smarthost | default('') }}"
+      smtp_from: "{{ smtp_from | default('') }}"
+      smtp_auth_username: "{{ smtp_username | default('') }}"
+      smtp_auth_password: "{{ smtp_password | default('') }}"
+      smtp_require_tls: true
+    route:
+      receiver: team-email
+      group_by: ['alertname','namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 3h
+    receivers:
+      - name: team-email
+        email_configs:
+          - to: "{{ email_to | default('') }}"
+

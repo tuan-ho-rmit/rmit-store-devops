@@ -83,10 +83,20 @@ pipeline {
                 -f values-staging.yaml ${MONGO_FLAG} ${HOST_FLAG}
 
             # rollout status
+            set +e
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 -n staging rollout status deploy/backend-green --timeout=300s || true
+              bitnami/kubectl:1.30 -n staging rollout status deploy/backend-green --timeout=300s
+            BACK_ROLLOUT=$?
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-              bitnami/kubectl:1.30 -n staging rollout status deploy/frontend-green --timeout=300s || true
+              bitnami/kubectl:1.30 -n staging rollout status deploy/frontend-green --timeout=300s
+            FRONT_ROLLOUT=$?
+            if [ $BACK_ROLLOUT -ne 0 ] || [ $FRONT_ROLLOUT -ne 0 ]; then
+              echo "Staging rollout failed; rolling back…"
+              docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                alpine/helm:3.14.4 rollback rmit-store-staging 1 -n staging || true
+              exit 1
+            fi
+            set -e
 
             # Diagnostics (always print for visibility)
             echo '--- staging: deploy/rs/pods';
@@ -156,10 +166,20 @@ pipeline {
                 -f values-prod.yaml ${MONGO_FLAG} ${HOST_FLAG}
 
             # rollout status
+            set +e
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 -n prod rollout status deploy/backend-green --timeout=300s
+            BACK_ROLLOUT=$?
             docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
               bitnami/kubectl:1.30 -n prod rollout status deploy/frontend-green --timeout=300s
+            FRONT_ROLLOUT=$?
+            if [ $BACK_ROLLOUT -ne 0 ] || [ $FRONT_ROLLOUT -ne 0 ]; then
+              echo "Prod rollout failed; rolling back…"
+              docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                alpine/helm:3.14.4 rollback rmit-store 1 -n prod || true
+              exit 1
+            fi
+            set -e
 
             shred -u kubeconfig || rm -f kubeconfig
           '''

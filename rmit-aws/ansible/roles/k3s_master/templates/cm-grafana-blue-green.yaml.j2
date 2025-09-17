@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dash-blue-green
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  blue-green.json: |
+{{ lookup('file', role_path + '/files/dashboards/blue-green.json') | indent(4, true) }}
+
+

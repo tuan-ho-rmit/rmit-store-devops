@@ -1,0 +1,29 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: app-rules
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+  - name: app.rules
+    rules:
+    - alert: PodRestartHigh
+      expr: increase(kube_pod_container_status_restarts_total[5m]) > 3
+      for: 5m
+      labels: { severity: warning }
+      annotations: { summary: "High container restarts (>3 in 5m)" }
+    - alert: Traefik5xxRate
+      expr: rate(traefik_service_requests_total{code=~"5.."}[5m]) > 0.05
+      for: 10m
+      labels: { severity: critical }
+      annotations: { summary: "HTTP 5xx >5% in last 10m" }
+    - alert: CertificateExpiringSoon
+      expr: (certmanager_certificate_expiration_timestamp_seconds - time()) < 86400 * 14
+      for: 10m
+      labels: { severity: warning }
+      annotations: { summary: "TLS certificate expires in <14 days" }
+{{- end }}
+
+

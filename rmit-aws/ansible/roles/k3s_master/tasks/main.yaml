@@ -54,6 +54,77 @@
   environment: { KUBECONFIG: /etc/rancher/k3s/k3s.yaml }
 
 
+- name: Install Helm CLI (if missing)
+  shell: |
+    set -e
+    if ! command -v helm >/dev/null 2>&1; then \
+      curl -sSL https://get.helm.sh/helm-v3.14.4-linux-amd64.tar.gz -o /tmp/helm.tgz; \
+      tar -C /tmp -xzf /tmp/helm.tgz; \
+      install -m 0755 /tmp/linux-amd64/helm /usr/local/bin/helm; \
+      rm -rf /tmp/linux-amd64 /tmp/helm.tgz; \
+    fi
+  become: true
+
+- name: Render kube-prometheus-stack values
+  template:
+    src: monitoring-values.yaml.j2
+    dest: /tmp/monitoring-values.yaml
+    mode: '0644'
+
+- name: Deploy kube-prometheus-stack via Helm
+  shell: |
+    set -e
+    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null 2>&1 || true
+    helm repo update >/dev/null 2>&1 || true
+    helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+      --namespace monitoring --create-namespace \
+      -f /tmp/monitoring-values.yaml
+  environment: { KUBECONFIG: /etc/rancher/k3s/k3s.yaml }
+
+
+# --- MongoDB exporter (optional, enabled by default here) ---
+- name: Install Prometheus MongoDB Exporter via Helm
+  shell: |
+    set -e
+    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >/dev/null 2>&1 || true
+    helm repo update >/dev/null 2>&1 || true
+    helm upgrade --install mongodb-exporter prometheus-community/prometheus-mongodb-exporter \
+      --namespace monitoring --create-namespace \
+      --set mongodb.uri="{{ mongo_uri | default('mongodb://127.0.0.1:27017/admin') }}"
+  environment: { KUBECONFIG: /etc/rancher/k3s/k3s.yaml }
+
+# --- Grafana dashboards as ConfigMaps ---
+- name: "Render Grafana dashboard CM: App SLO"
+  template:
+    src: cm-grafana-app-slo.yaml.j2
+    dest: /tmp/cm-grafana-app-slo.yaml
+    mode: '0644'
+
+- name: "Apply Grafana dashboard CM: App SLO"
+  shell: kubectl apply -f /tmp/cm-grafana-app-slo.yaml
+  environment: { KUBECONFIG: /etc/rancher/k3s/k3s.yaml }
+
+- name: "Render Grafana dashboard CM: Blue-Green"
+  template:
+    src: cm-grafana-blue-green.yaml.j2
+    dest: /tmp/cm-grafana-blue-green.yaml
+    mode: '0644'
+
+- name: "Apply Grafana dashboard CM: Blue-Green"
+  shell: kubectl apply -f /tmp/cm-grafana-blue-green.yaml
+  environment: { KUBECONFIG: /etc/rancher/k3s/k3s.yaml }
+
+- name: "Render Grafana dashboard CM: Mongo"
+  template:
+    src: cm-grafana-mongo.yaml.j2
+    dest: /tmp/cm-grafana-mongo.yaml
+    mode: '0644'
+
+- name: "Apply Grafana dashboard CM: Mongo"
+  shell: kubectl apply -f /tmp/cm-grafana-mongo.yaml
+  environment: { KUBECONFIG: /etc/rancher/k3s/k3s.yaml }
+
+
 - name: Copy kubeconfig for later (Jenkins credential)
   copy:
     src: /etc/rancher/k3s/k3s.yaml

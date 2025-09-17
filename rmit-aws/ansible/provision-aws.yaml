@@ -24,6 +24,7 @@
         url: https://api.ipify.org
         method: GET
         return_content: yes
+        validate_certs: no
       register: ipify
       when: ssh_cidr_env | length == 0
 

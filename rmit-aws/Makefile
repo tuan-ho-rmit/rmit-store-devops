@@ -77,6 +77,12 @@ inventory:
 	# Jenkins admin (from .env)
 	printf "jenkins_admin_user: \"%s\"\n" "$$JENKINS_ADMIN_USER" >> ansible/group_vars/all.yaml; \
 	printf "jenkins_admin_password: \"%s\"\n" "$$JENKINS_ADMIN_PASSWORD" >> ansible/group_vars/all.yaml; \
+	# Optional SMTP/Alerting settings (only write if provided in .env)
+	if [ -n "$$SMTP_SMARTHOST" ];  then printf "smtp_smarthost: \"%s\"\n" "$$SMTP_SMARTHOST"   >> ansible/group_vars/all.yaml; fi; \
+	if [ -n "$$SMTP_FROM" ];       then printf "smtp_from: \"%s\"\n"      "$$SMTP_FROM"       >> ansible/group_vars/all.yaml; fi; \
+	if [ -n "$$SMTP_USERNAME" ];   then printf "smtp_username: \"%s\"\n"  "$$SMTP_USERNAME"   >> ansible/group_vars/all.yaml; fi; \
+	if [ -n "$$SMTP_PASSWORD" ];   then printf "smtp_password: \"%s\"\n"  "$$SMTP_PASSWORD"   >> ansible/group_vars/all.yaml; fi; \
+	if [ -n "$$EMAIL_TO" ];        then printf "email_to: \"%s\"\n"       "$$EMAIL_TO"        >> ansible/group_vars/all.yaml; fi; \
 	echo "Created ansible/inventory.ini and group_vars/all.yaml"
 
 aws-wait:

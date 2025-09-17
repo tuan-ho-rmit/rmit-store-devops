@@ -30,6 +30,17 @@ jenkins:
 unclassified:
   location:
     url: "{{ jenkins_url_hint }}"
+  mailer:
+    smtpHost: "{{ smtp_smarthost | default('') | regex_replace(':.*$','') }}"
+    smtpPort: "{{ (smtp_smarthost | default('') | regex_search(':(\\d+)$') or ['','25'])[1] }}"
+    useSsl: false
+    useTls: true
+    authentication:
+      username: "{{ smtp_username | default('') }}"
+      password: "{{ smtp_password | default('') }}"
+    charset: "UTF-8"
+    replyToAddress: "{{ smtp_from | default('') }}"
+    from: "{{ smtp_from | default('') }}"
 
 credentials:
   system:
@@ -73,4 +84,26 @@ jobs:
           }
         }
         triggers { githubPush() }
+      }
+  - script: |
+      multibranchPipelineJob('RMIT-Store-PR') {
+        displayName('RMIT-Store (PR CI)')
+        branchSources {
+          github {
+            id('rmit-store-pr')
+            repoOwner('{{ github_owner }}')
+            repository('{{ github_repo | regex_replace('.*/','') }}')
+            credentialsId('github-token')
+          }
+        }
+        factory {
+          workflowBranchProjectFactory {
+            scriptPath('Jenkinsfile.pr')
+          }
+        }
+        orphanedItemStrategy {
+          discardOldItems {
+            numToKeep(10)
+          }
+        }
       }

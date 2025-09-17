@@ -1,0 +1,30 @@
+pipeline {
+  agent any
+  options { skipDefaultCheckout(false) }
+  stages {
+    stage('Checkout'){ steps { checkout scm } }
+    stage('Server tests'){
+      steps {
+        dir('server'){
+          sh '''
+            docker run --rm -v $PWD:/app -w /app node:18-alpine sh -lc "npm ci && npm test"
+          '''
+        }
+      }
+    }
+    stage('Client lint/build'){
+      steps {
+        dir('client'){
+          sh '''
+            docker run --rm -v $PWD:/app -w /app node:18-alpine sh -lc "npm ci && npm run build || true"
+          '''
+        }
+      }
+    }
+  }
+  post {
+    failure { echo "PR checks failed: ${env.BUILD_URL}" }
+  }
+}
+
+
