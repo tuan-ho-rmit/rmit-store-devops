@@ -158,25 +158,20 @@ pipeline {
 
     stage('E2E STAGING (Playwright)'){
       steps {
-        withCredentials([
-          string(credentialsId: 'admin-email', variable: 'P_ADMIN_EMAIL'),
-          string(credentialsId: 'admin-pass',  variable: 'P_ADMIN_PASS')
-        ]){
-          sh '''
-            set -e
-            # Run Playwright tests against staging in a container
-            docker run --rm \
-              -e BASE_URL="http://$STAGING_HOST" \
-              -e ADMIN_EMAIL="${P_ADMIN_EMAIL:-admin@rmit.local}" \
-              -e ADMIN_PASS="${P_ADMIN_PASS:-Admin123!}" \
-              -e READ_ONLY_GUARD=0 \
-              -v "$PWD"/tests/e2e-playwright:/e2e -w /e2e \
-              mcr.microsoft.com/playwright:v1.48.2-jammy bash -lc "\
-                if [ -f package-lock.json ]; then npm ci; else npm install; fi && \
-                npx playwright install --with-deps && \
-                npx playwright test --reporter=dot"
-          '''
-        }
+        sh '''
+          set -e
+          # Run Playwright tests against staging in a container
+          docker run --rm \
+            -e BASE_URL="http://$STAGING_HOST" \
+            -e ADMIN_EMAIL="${ADMIN_EMAIL:-admin@rmit.local}" \
+            -e ADMIN_PASS="${ADMIN_PASS:-Admin123!}" \
+            -e READ_ONLY_GUARD=0 \
+            -v "$PWD"/tests/e2e-playwright:/e2e -w /e2e \
+            mcr.microsoft.com/playwright:v1.48.2-jammy bash -lc "\
+              if [ -f package-lock.json ]; then npm ci; else npm install; fi && \
+              npx playwright install --with-deps && \
+              npx playwright test --reporter=dot"
+        '''
       }
     }
 
