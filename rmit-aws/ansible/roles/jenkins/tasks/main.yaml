@@ -37,7 +37,7 @@
     dest: /opt/jenkins/casc.yaml
     mode: '0644'
   vars:
-    kubeconfig_b64: "{{ hostvars[groups['k3s_master'][0]].kubeconfig_b64 }}"
+    kubeconfig_b64: "{{ kubeconfig_b64_effective | default('') }}"
 
 - name: Run Jenkins container
   docker_container:

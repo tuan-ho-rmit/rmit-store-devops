@@ -224,6 +224,10 @@ pipeline {
     }
     failure {
       echo "Deployment failed at stage: ${env.STAGE_NAME}"
+      // Send email via Jenkins core mailer (requires SMTP configured in Manage Jenkins)
+      mail to: "${env.EMAIL_TO ?: ''}",
+           subject: "Deployment Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+           body: "Build URL: ${env.BUILD_URL}\nStage: ${env.STAGE_NAME}"
     }
   }
 }

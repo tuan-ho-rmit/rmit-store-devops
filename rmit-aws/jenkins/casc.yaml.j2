@@ -32,15 +32,12 @@ unclassified:
     url: "{{ jenkins_url_hint }}"
   mailer:
     smtpHost: "{{ smtp_smarthost | default('') | regex_replace(':.*$','') }}"
-    smtpPort: "{{ (smtp_smarthost | default('') | regex_search(':(\\d+)$') or ['','25'])[1] }}"
-    useSsl: false
     useTls: true
     authentication:
       username: "{{ smtp_username | default('') }}"
       password: "{{ smtp_password | default('') }}"
     charset: "UTF-8"
     replyToAddress: "{{ smtp_from | default('') }}"
-    from: "{{ smtp_from | default('') }}"
 
 credentials:
   system:
@@ -89,11 +86,15 @@ jobs:
       multibranchPipelineJob('RMIT-Store-PR') {
         displayName('RMIT-Store (PR CI)')
         branchSources {
-          github {
-            id('rmit-store-pr')
-            repoOwner('{{ github_owner }}')
-            repository('{{ github_repo | regex_replace('.*/','') }}')
-            credentialsId('github-token')
+          branchSource {
+            source {
+              github {
+                id('rmit-store-pr')
+                repoOwner('{{ github_owner }}')
+                repository('{{ github_repo | regex_replace('.*/','') }}')
+                credentialsId('github-token')
+              }
+            }
           }
         }
         factory {

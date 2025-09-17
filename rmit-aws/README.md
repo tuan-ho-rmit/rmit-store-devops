@@ -15,6 +15,42 @@ The Makefile orchestrates the full flow so you can run everything with a single 
   - awscli (v2 recommended)
 - An EC2 SSH key pair PEM file available locally in this folder
 
+### Create the EC2 SSH key (.pem)
+You need a private key file in this directory with the name `./${EC2_KEY_NAME}.pem` and permissions `0600`.
+
+Option A — create a key pair in AWS and save the private key locally (recommended):
+```bash
+# Replace with your preferred key name
+export EC2_KEY_NAME=rmit-ec2
+
+# Create the key in your configured AWS region and save the private key locally
+aws ec2 create-key-pair --key-name "$EC2_KEY_NAME" \
+  --query 'KeyMaterial' --output text > "$EC2_KEY_NAME.pem"
+
+# Restrict permissions so SSH will accept it
+chmod 600 "$EC2_KEY_NAME.pem"
+```
+
+Option B — use an existing local key and import its public key into AWS:
+```bash
+# Generate an ED25519 key locally (or reuse an existing key)
+ssh-keygen -t ed25519 -C "rmit" -f rmit-ec2
+
+# Import the public key into AWS as a key pair
+aws ec2 import-key-pair --key-name rmit-ec2 --public-key-material fileb://rmit-ec2.pub
+
+# Ensure the private key is in this folder and has correct permissions
+mv rmit-ec2 rmit-ec2.pem
+chmod 600 rmit-ec2.pem
+```
+
+Set the same key name in `.env`:
+```bash
+EC2_KEY_NAME=rmit-ec2
+```
+
+Place the `.pem` file in this `rmit-aws/` directory. The Makefile and inventory expect `./${EC2_KEY_NAME}.pem` here.
+
 ### Set AWS credentials (shell exports)
 Use an IAM user/role with permissions to create VPC/EC2/Security Groups, etc.
 
