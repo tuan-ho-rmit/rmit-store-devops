@@ -289,7 +289,6 @@ pipeline {
           </ul>
         """
         currentBuild.description = 'Links: staging/prod'
-        try { createSummary(icon: 'link-48x48.png', text: html) } catch (e) { echo "createSummary not available: ${e}" }
       }
     }
     failure {
