@@ -70,7 +70,7 @@ export const signUp = () => {
         ...newUser
       };
 
-      const response = await axios.post(`${API_URL}/auth/login`, user);
+      const response = await axios.post(`${API_URL}/auth/register`, user);
 
       const successfulOptions = {
         title: `You have signed up successfully! You will be receiving an email as well. Thank you!`,
