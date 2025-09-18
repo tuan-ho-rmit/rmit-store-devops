@@ -21,7 +21,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // fetch product slug api
-router.get('/item/:slug', async (req, res) => {
+// router.get('/item/:slug', async (req, res) => {
   try {
     const slug = req.params.slug;
 
