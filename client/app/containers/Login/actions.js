@@ -57,7 +57,7 @@ export const login = () => {
     dispatch({ type: SET_LOGIN_LOADING, payload: true });
 
     try {
-      const response = await axios.post(`${API_URL}/auth/lol`, user);
+      const response = await axios.post(`${API_URL}/auth/login`, user);
 
       const firstName = response.data.user.firstName;
 
