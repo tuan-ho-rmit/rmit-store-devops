@@ -203,12 +203,14 @@ pipeline {
           sh '''
             set -e
             cp "$KUBECONF" kubeconfig && chmod 600 kubeconfig
-            echo "[verify] staging backend selector:" && \
-              docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-                rancher/kubectl:v1.30.6 -n staging get svc backend -o jsonpath='{.spec.selector.activeColor}{"\n"}' | tee /dev/stderr | grep -q '^blue$'
-            echo "[verify] staging frontend selector:" && \
-              docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
-                rancher/kubectl:v1.30.6 -n staging get svc frontend -o jsonpath='{.spec.selector.activeColor}{"\n"}' | tee /dev/stderr | grep -q '^blue$'
+            echo "[verify] staging backend selector:"
+            BK=$(docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                rancher/kubectl:v1.30.6 -n staging get svc backend -o jsonpath='{.spec.selector.activeColor}')
+            echo "$BK" && [ "$BK" = "blue" ]
+            echo "[verify] staging frontend selector:"
+            FE=$(docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                rancher/kubectl:v1.30.6 -n staging get svc frontend -o jsonpath='{.spec.selector.activeColor}')
+            echo "$FE" && [ "$FE" = "blue" ]
             shred -u kubeconfig || rm -f kubeconfig
             : ${STAGING_HOST:?STAGING_HOST not set}
             docker run --rm curlimages/curl:8.8.0 -fsS "http://$STAGING_HOST/api/health" > /dev/null
