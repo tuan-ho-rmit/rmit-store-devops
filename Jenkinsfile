@@ -4,6 +4,9 @@ pipeline {
     buildDiscarder(logRotator(daysToKeepStr: '14', numToKeepStr: '30', artifactDaysToKeepStr: '7', artifactNumToKeepStr: '10'))
     timestamps()
   }
+  parameters {
+    booleanParam(name: 'CLEAN_BUILD', defaultValue: false, description: 'Force docker build without cache')
+  }
   environment {
     DH_NS     = "${env.DH_NS ?: '<your-dockerhub-username-or-org>'}"
     FRONT_IMG = "docker.io/${DH_NS}/rmit-store-frontend"
@@ -36,10 +39,9 @@ pipeline {
       steps{
         sh '''
           echo "[docker-gc] Before:" && docker system df || true
+          # Keep image/build cache for faster builds
           docker container prune -f || true
-          docker image prune -af || true
           docker volume prune -f || true
-          docker builder prune -af || true
           echo "[docker-gc] After:" && docker system df || true
         '''
       }
@@ -48,9 +50,9 @@ pipeline {
     stage('Build images'){
       steps {
         sh """
-          docker build --pull -t ${BACK_IMG}:${GIT_COMMIT}  ./server
+          docker build --pull $([ "${CLEAN_BUILD}" = "true" ] && echo "--no-cache") -t ${BACK_IMG}:${GIT_COMMIT}  ./server
           # Build frontend with API_URL pointing to same-origin /api
-          docker build --pull --build-arg API_URL=/api -t ${FRONT_IMG}:${GIT_COMMIT} ./client
+          docker build --pull $([ "${CLEAN_BUILD}" = "true" ] && echo "--no-cache") --build-arg API_URL=/api -t ${FRONT_IMG}:${GIT_COMMIT} ./client
         """
       }
     }

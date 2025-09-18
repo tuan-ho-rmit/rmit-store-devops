@@ -29,13 +29,15 @@ jenkins:
             value: "{{ (staging_host if staging_host|default('')|length > 0 else ('rmit-staging.' ~ (base_url | regex_replace('^https?://','') | regex_replace('/.*$','') | replace('.','-')) ~ '.nip.io')) }}"
           - key: "PROD_HOST"
             value: "{{ (prod_host if prod_host|default('')|length > 0 else ('rmit-prod.' ~ (base_url | regex_replace('^https?://','') | regex_replace('/.*$','') | replace('.','-')) ~ '.nip.io')) }}"
+          - key: "EMAIL_TO"
+            value: "{{ email_to | default('') }}"
 
 unclassified:
   location:
     url: "{{ jenkins_url_hint }}"
   mailer:
     smtpHost: "{{ smtp_smarthost | default('') | regex_replace(':.*$','') }}"
-    smtpPort: "{{ (smtp_smarthost | default('smtp.gmail.com:587')) | regex_search(':(\\d+)$') | default(['', '587']) | last }}"
+    smtpPort: "{{ ((smtp_smarthost | default('smtp.gmail.com:587')) | regex_findall(':(\\d+)$')) | default(['587']) | first }}"
     useTls: true
     authentication:
       username: "{{ smtp_username | default('') }}"

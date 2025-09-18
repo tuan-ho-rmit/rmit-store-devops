@@ -82,6 +82,7 @@
       blueocean
       docker-workflow
       email-ext
+      timestamper
       configuration-as-code
       kubernetes-cli
       github
