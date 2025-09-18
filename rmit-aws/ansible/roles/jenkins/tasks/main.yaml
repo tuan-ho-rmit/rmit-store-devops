@@ -83,6 +83,7 @@
       docker-workflow
       email-ext
       timestamper
+      htmlpublisher
       configuration-as-code
       kubernetes-cli
       github
@@ -399,7 +400,7 @@
 
 - name: Determine webhook id
   set_fact:
-    gh_hook_id: "{{ (gh_hook.id | default('')) if (gh_hook is defined and gh_hook is not none) else (gh_create.json.id | default('')) }}"
+    gh_hook_id: "{{ (gh_hook.id | default(0)) if (gh_hook is defined and gh_hook is not none) else (gh_create.json.id | default(0)) }}"
 
 - name: Ping webhook
   uri:
@@ -410,4 +411,4 @@
       Accept: "application/vnd.github+json"
     status_code: 204
   changed_when: false
-  when: gh_hook_id is defined and gh_hook_id | length > 0
+  when: gh_hook_id is defined and (gh_hook_id | int) > 0

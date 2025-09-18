@@ -175,6 +175,44 @@ pipeline {
               npx playwright test --reporter=dot"
         '''
       }
+      post {
+        failure {
+          withCredentials([file(credentialsId: 'kubeconfig-master', variable: 'KUBECONF')]){
+            sh '''
+              set -e
+              echo "[rollback] E2E failed → switching staging traffic back to BLUE"
+              cp "$KUBECONF" kubeconfig && chmod 600 kubeconfig
+              docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                rancher/kubectl:v1.30.6 -n staging patch service backend  -p '{"spec":{"selector":{"app":"backend","activeColor":"blue"}}}'
+              docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                rancher/kubectl:v1.30.6 -n staging patch service frontend -p '{"spec":{"selector":{"app":"frontend","activeColor":"blue"}}}'
+              shred -u kubeconfig || rm -f kubeconfig
+            '''
+          }
+          script { env.ROLLED_BACK_STAGING = '1' }
+        }
+      }
+    }
+
+    stage('Verify ROLLBACK (staging)'){
+      when { expression { return (env.ROLLED_BACK_STAGING ?: '') == '1' } }
+      steps {
+        withCredentials([file(credentialsId: 'kubeconfig-master', variable: 'KUBECONF')]){
+          sh '''
+            set -e
+            cp "$KUBECONF" kubeconfig && chmod 600 kubeconfig
+            echo "[verify] staging backend selector:" && \
+              docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                rancher/kubectl:v1.30.6 -n staging get svc backend -o jsonpath='{.spec.selector.activeColor}{"\n"}' | tee /dev/stderr | grep -q '^blue$'
+            echo "[verify] staging frontend selector:" && \
+              docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                rancher/kubectl:v1.30.6 -n staging get svc frontend -o jsonpath='{.spec.selector.activeColor}{"\n"}' | tee /dev/stderr | grep -q '^blue$'
+            shred -u kubeconfig || rm -f kubeconfig
+            : ${STAGING_HOST:?STAGING_HOST not set}
+            docker run --rm curlimages/curl:8.8.0 -fsS "http://$STAGING_HOST/api/health" > /dev/null
+          '''
+        }
+      }
     }
 
     stage('Deploy GREEN (prod)'){
@@ -233,6 +271,44 @@ pipeline {
           '''
         }
       }
+      post {
+        failure {
+          withCredentials([file(credentialsId: 'kubeconfig-master', variable: 'KUBECONF')]){
+            sh '''
+              set -e
+              echo "[rollback] Prod rollout failed → ensuring BLUE is serving"
+              cp "$KUBECONF" kubeconfig && chmod 600 kubeconfig
+              docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                rancher/kubectl:v1.30.6 -n prod patch service backend  -p '{"spec":{"selector":{"app":"backend","activeColor":"blue"}}}' || true
+              docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                rancher/kubectl:v1.30.6 -n prod patch service frontend -p '{"spec":{"selector":{"app":"frontend","activeColor":"blue"}}}' || true
+              shred -u kubeconfig || rm -f kubeconfig
+            '''
+          }
+          script { env.ROLLED_BACK_PROD = '1' }
+        }
+      }
+    }
+
+    stage('Verify ROLLBACK (prod)'){
+      when { expression { return (env.ROLLED_BACK_PROD ?: '') == '1' } }
+      steps {
+        withCredentials([file(credentialsId: 'kubeconfig-master', variable: 'KUBECONF')]){
+          sh '''
+            set -e
+            cp "$KUBECONF" kubeconfig && chmod 600 kubeconfig
+            echo "[verify] prod backend selector:" && \
+              docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                rancher/kubectl:v1.30.6 -n prod get svc backend -o jsonpath='{.spec.selector.activeColor}{"\n"}' | tee /dev/stderr | grep -q '^blue$'
+            echo "[verify] prod frontend selector:" && \
+              docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                rancher/kubectl:v1.30.6 -n prod get svc frontend -o jsonpath='{.spec.selector.activeColor}{"\n"}' | tee /dev/stderr | grep -q '^blue$'
+            shred -u kubeconfig || rm -f kubeconfig
+            : ${PROD_HOST:?PROD_HOST not set}
+            docker run --rm curlimages/curl:8.8.0 -fsS "http://$PROD_HOST/api/health" > /dev/null
+          '''
+        }
+      }
     }
 
     stage('Smoke GREEN'){
@@ -282,13 +358,27 @@ pipeline {
         if (stB) links << "<li><a href='${stB}'>Staging Backend (health)</a></li>"
         if (prF) links << "<li><a href='${prF}'>Prod Frontend</a></li>"
         if (prB) links << "<li><a href='${prB}'>Prod Backend (health)</a></li>"
+        sh 'mkdir -p build-summary'
         def html = """
+          <html><body>
           <h3>Deployed Links</h3>
           <ul>
             ${links.join(' ')}
           </ul>
+          </body></html>
         """
-        currentBuild.description = 'Links: staging/prod'
+        writeFile file: 'build-summary/index.html', text: html
+        publishHTML(target: [reportDir: 'build-summary', reportFiles: 'index.html', reportName: 'HTML Report', keepAll: true, alwaysLinkToLastBuild: true, allowMissing: false])
+
+        def desc = [
+          (stF ? "Staging FE: ${stF}" : null),
+          (stB ? "Staging BE: ${stB}" : null),
+          (prF ? "Prod FE: ${prF}" : null),
+          (prB ? "Prod BE: ${prB}" : null)
+        ].findAll { it != null }.join(' | ')
+        if (!desc?.trim()) { desc = 'No links available' }
+        currentBuild.description = desc
+        echo desc
       }
     }
     failure {
