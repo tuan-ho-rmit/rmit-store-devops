@@ -5,6 +5,9 @@ const API_URL = process.env.API_URL || 'http://localhost:3000/api';
 const USE_HASH = process.env.USE_HASH === '1'; 
 const BASE_PATH = process.env.BASE_PATH || ''; 
 
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASS  = process.env.ADMIN_PASS;
+
 function gotoPath(path: string): string {
   const p = path.startsWith('/') ? path : `/${path}`;
   return USE_HASH ? `/#${BASE_PATH}${p}` : `${BASE_PATH}${p}`;
@@ -28,8 +31,8 @@ test.describe('LIVE • Full order flow (FE + BE + DB)', () => {
         await test.step('Login as admin', async () => { 
             await page.goto(gotoPath('/login')); 
             const box = page.locator('.login-form'); 
-            await box.getByPlaceholder('Enter Your Email Address').fill('admin@rmit.edu.vn'); 
-            await box.getByPlaceholder('Enter Your Password').fill('ChangeMe123!'); 
+            await box.getByPlaceholder('Enter Your Email Address').fill(ADMIN_EMAIL || 'admin@rmit.edu.vn'); 
+            await box.getByPlaceholder('Enter Your Password').fill(ADMIN_PASS || 'ChangeMe123!'); 
             await Promise.all([ page.waitForLoadState('networkidle'), 
             page.getByRole('button', { name: /Sign In/i }).click(), 
         ]); }); 

@@ -98,8 +98,8 @@ test.describe('ADMIN • add product then delete it', () => {
     await page.goto(gotoPath('/login'));
     await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible();
     const box = page.locator('.login-form'); 
-    await box.getByPlaceholder('Enter Your Email Address').fill('admin@rmit.edu.vn'); 
-    await box.getByPlaceholder('Enter Your Password').fill('ChangeMe123!'); 
+    await box.getByPlaceholder('Enter Your Email Address').fill(ADMIN_EMAIL || 'admin@rmit.edu.vn'); 
+    await box.getByPlaceholder('Enter Your Password').fill(ADMIN_PASS || 'ChangeMe123!'); 
     await Promise.all([
       page.waitForLoadState('networkidle'),
       page.getByRole('button', { name: /sign in/i }).click()
