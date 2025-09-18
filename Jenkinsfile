@@ -49,11 +49,11 @@ pipeline {
 
     stage('Build images'){
       steps {
-        sh """
+        sh '''
           docker build --pull $([ "${CLEAN_BUILD}" = "true" ] && echo "--no-cache") -t ${BACK_IMG}:${GIT_COMMIT}  ./server
           # Build frontend with API_URL pointing to same-origin /api
           docker build --pull $([ "${CLEAN_BUILD}" = "true" ] && echo "--no-cache") --build-arg API_URL=/api -t ${FRONT_IMG}:${GIT_COMMIT} ./client
-        """
+        '''
       }
     }
 
