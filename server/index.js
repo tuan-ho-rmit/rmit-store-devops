@@ -42,7 +42,6 @@ if (process.env.NODE_ENV !== 'test' && require.main === module) {
         `Listening on port ${port}. Visit http://localhost:${port}/ in your browser.`
       )}`
     );
-    console.log
   });
   // Initialize WebSocket server
   socket(server);
