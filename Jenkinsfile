@@ -191,6 +191,24 @@ pipeline {
                 rancher/kubectl:v1.30.6 -n staging patch service backend  -p '{"spec":{"selector":{"app":"backend","activeColor":"blue"}}}'
               docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
                 rancher/kubectl:v1.30.6 -n staging patch service frontend -p '{"spec":{"selector":{"app":"frontend","activeColor":"blue"}}}'
+
+              # Also revert Helm release to previous successful revision (staging)
+              prev_rev=$(docker run --rm -u 0 -e KUBECONFIG=/kubeconfig \
+                -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                alpine/helm:3.14.4 -n staging history rmit-store-staging | sed 1d | tail -n 2 | head -n 1 | awk '{print $1}')
+              if [ -n "$prev_rev" ]; then
+                echo "[rollback] Helm rollback rmit-store-staging to rev $prev_rev"
+                docker run --rm -u 0 -e KUBECONFIG=/kubeconfig \
+                  -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                  alpine/helm:3.14.4 -n staging rollback rmit-store-staging "$prev_rev" || true
+                # Wait for blue to be healthy
+                docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                  rancher/kubectl:v1.30.6 -n staging rollout status deploy/backend-blue --timeout=300s || true
+                docker run --rm -u 0 -e KUBECONFIG=/kubeconfig -v "$PWD"/kubeconfig:/kubeconfig:ro \
+                  rancher/kubectl:v1.30.6 -n staging rollout status deploy/frontend-blue --timeout=300s || true
+              else
+                echo "[rollback] Previous Helm revision not found; skipped"
+              fi
               shred -u kubeconfig || rm -f kubeconfig
             '''
           }
