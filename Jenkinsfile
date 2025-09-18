@@ -178,6 +178,9 @@ pipeline {
         }
       }
       post {
+        success {
+          script { env.E2E_OK = '1' }
+        }
         unsuccessful {
           withCredentials([file(credentialsId: 'kubeconfig-master', variable: 'KUBECONF')]){
             sh '''
@@ -220,6 +223,7 @@ pipeline {
     }
 
     stage('Deploy GREEN (prod)'){
+      when { expression { return (env.E2E_OK ?: '') == '1' } }
       steps {
         withCredentials([file(credentialsId: 'kubeconfig-master', variable: 'KUBECONF')]){
           sh '''
@@ -316,6 +320,7 @@ pipeline {
     }
 
     stage('Smoke GREEN'){
+      when { expression { return (env.E2E_OK ?: '') == '1' } }
       steps {
         sh '''
           if [ -z "$PROD_HOST" ]; then
@@ -330,6 +335,7 @@ pipeline {
     }
 
     stage('Cutover BLUE -> GREEN'){
+      when { expression { return (env.E2E_OK ?: '') == '1' } }
       steps {
         withCredentials([file(credentialsId: 'kubeconfig-master', variable: 'KUBECONF')]){
           sh '''
