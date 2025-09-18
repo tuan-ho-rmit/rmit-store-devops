@@ -6,7 +6,7 @@ const Address = require('../../models/address');
 const auth = require('../../middleware/auth');
 
 // add address api
-router.post('/add', auth, async (req, res) => {
+?
   try {
     const user = req.user;
 
