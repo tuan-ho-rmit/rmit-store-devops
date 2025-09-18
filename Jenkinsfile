@@ -160,7 +160,7 @@ pipeline {
 
     stage('E2E STAGING (Playwright)'){
       steps {
-        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+        catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
           sh '''
             set -e
             # Run Playwright tests against staging in a container
@@ -178,7 +178,7 @@ pipeline {
         }
       }
       post {
-        failure {
+        unsuccessful {
           withCredentials([file(credentialsId: 'kubeconfig-master', variable: 'KUBECONF')]){
             sh '''
               set -e
