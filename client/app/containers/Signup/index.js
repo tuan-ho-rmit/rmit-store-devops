@@ -43,7 +43,7 @@ class Signup extends React.PureComponent {
         {isLoading && <LoadingIndicator />}
         <h2>Create Your Account</h2>
         <hr />
-        <form onSubmit={} noValidate>
+        <form onSubmit={handleSubmit} noValidate>
           <Row>
             <Col
               xs={{ size: 12, order: 2 }}
