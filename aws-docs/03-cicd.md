@@ -7,21 +7,26 @@
 ```mermaid
 flowchart TB
   A[Push to main] --> B[Checkout]
-  B --> C[Jest + Supertest]
-  C -- fail --> X[[Fail build]]
-  C -- pass --> D[Build backend + frontend images]
-  D --> E[Push commit-tag images]
+  B --> C[Jest and Supertest]
+  C -- fail --> X[Fail build]
+  C -- pass --> D[Build images]
+  D --> E[Push images]
   E --> F[Helm deploy STAGING]
-  F -- rollout fail --> R1[Auto rollback\n(helm rollback rmit-store-staging)] --> X
-  F -- rollout ok --> G[Cutover Services → green (staging)]
+  F -- rollout fail --> R1[Helm rollback staging]
+  R1 --> X
+  F -- rollout ok --> G[Cutover services to green - staging]
   G --> H[Smoke STAGING]
   H --> I[Playwright E2E STAGING]
-  I -- fail --> RB1[Traffic rollback to BLUE\n+ helm rollback staging\n+ verify selectors+health] --> X
-  I -- pass --> P[Promote images :latest]
+  I -- fail --> RB1[Traffic to BLUE]
+  RB1 --> RB2[Helm rollback staging]
+  RB2 --> RB3[Verify selectors and health]
+  RB3 --> X
+  I -- pass --> P[Promote images latest]
   P --> Q[Helm deploy PROD]
-  Q -- rollout fail --> R2[Auto rollback helm prod] --> X
-  Q -- rollout ok --> S[Smoke GREEN (prod)]
-  S --> T[Cutover BLUE → GREEN (prod)]
+  Q -- rollout fail --> R2[Helm rollback prod]
+  R2 --> X
+  Q -- rollout ok --> S[Smoke GREEN prod]
+  S --> T[Cutover BLUE to GREEN prod]
 ```
 ### Detailed step‑by‑step
 1) Checkout
